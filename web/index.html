@@ -20,29 +20,15 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 
     <link rel="stylesheet" href="styles.css">
-    <!-- xterm.js for the interactive terminal (M4). UMD bundles expose the
+    <!-- xterm.js for the interactive terminal — self-hosted (see web/vendor/xterm)
+         so a strict CSP needs no third-party origins. The UMD bundles expose the
          globals `Terminal` and `FitAddon`. -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
-    <!-- Apply the saved theme before first paint to avoid a flash of the wrong palette. -->
-    <script>
-      (function () {
-        try {
-          var pref = localStorage.getItem('omnyshell.theme') || 'system';
-          var dark = pref === 'dark' ||
-            (pref === 'system' &&
-             window.matchMedia &&
-             window.matchMedia('(prefers-color-scheme: dark)').matches);
-          var theme = dark ? 'dark' : 'light';
-          document.documentElement.setAttribute('data-theme', theme);
-          var meta = document.getElementById('theme-color');
-          if (meta) meta.setAttribute('content', dark ? '#0f1318' : '#f6f7f9');
-        } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'light');
-        }
-      })();
-    </script>
+    <link rel="stylesheet" href="vendor/xterm/xterm.min.css">
+    <script src="vendor/xterm/xterm.min.js"></script>
+    <script src="vendor/xterm/addon-fit.min.js"></script>
+    <!-- Pre-paint theme + service-worker registration (external so the deployed
+         CSP can use `script-src 'self'` with no inline scripts). -->
+    <script src="boot.js"></script>
     <script defer src="main.dart.js"></script>
 </head>
 <body>
@@ -50,15 +36,5 @@
         <div class="center-host"><span class="spinner" role="status" aria-label="Loading"></span></div>
     </div>
     <div id="toasts" aria-live="polite" aria-atomic="false"></div>
-    <!-- Register the service worker for installability + offline app shell. -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function () {
-          navigator.serviceWorker.register('service_worker.js').catch(function (e) {
-            console.warn('Service worker registration failed:', e);
-          });
-        });
-      }
-    </script>
 </body>
 </html>
