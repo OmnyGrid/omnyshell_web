@@ -1,6 +1,6 @@
 /// A terminal surface the app can write bytes to and receive input/resize from.
-/// Abstracted so the wiring ([SessionBridge]) is testable with a fake, while the
-/// production implementation (`XtermTerminalView`) wraps xterm.js.
+/// Abstracted so the host wiring ([WebShellHost]) is testable with a fake, while
+/// the production implementation (`XtermTerminalView`) wraps xterm.js.
 abstract class TerminalView {
   /// Writes raw output [bytes] to the terminal.
   void write(List<int> bytes);
@@ -17,6 +17,12 @@ abstract class TerminalView {
   /// Current terminal size in columns/rows.
   ({int cols, int rows}) get size;
 
+  /// The currently selected text (empty when there is no selection).
+  String get selection;
+
+  /// Clears any active selection.
+  void clearSelection();
+
   /// Gives the terminal keyboard focus.
   void focus();
 
@@ -24,31 +30,18 @@ abstract class TerminalView {
   void dispose();
 }
 
-/// The session-side I/O the terminal is wired to: a merged output stream, stdin,
-/// resize, flow-control window grants, and lifecycle. Abstracted so the bridge
-/// is testable without a real `RemoteSession`/socket.
-abstract class SessionIo {
-  /// Merged stdout+stderr from the remote session.
-  Stream<List<int>> get output;
+/// The key-input surface the on-screen accessory bar drives: inject raw key
+/// sequences and toggle a sticky Ctrl modifier. Implemented by [WebShellHost].
+abstract class TerminalKeys {
+  /// Injects [bytes] as if the user typed them.
+  void sendKey(List<int> bytes);
 
-  /// Sends [data] to the remote session's stdin.
-  void writeStdin(List<int> data);
+  /// Toggles the sticky Ctrl modifier.
+  void armCtrl();
 
-  /// Informs the remote of a new terminal size.
-  void resize(int cols, int rows);
+  /// Whether the sticky Ctrl modifier is armed.
+  bool get ctrlArmed;
 
-  /// Replenishes the remote's send window by [bytes] consumed (back-pressure).
-  void grantWindow(int bytes);
-
-  /// Sends an interrupt (Ctrl-C / SIGINT).
-  void interrupt();
-
-  /// Completes with the process exit code when the session ends.
-  Future<int> get exitCode;
-
-  /// Detaches the session, leaving it alive on the node for later resume.
-  Future<void> detach();
-
-  /// Closes/terminates the session.
-  Future<void> close();
+  /// Set a callback notified when the Ctrl modifier arms/disarms.
+  set onCtrlChange(void Function(bool armed)? callback);
 }

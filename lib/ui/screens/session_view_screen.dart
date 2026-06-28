@@ -1,18 +1,20 @@
 import 'dart:async';
 
+import 'package:omnyshell/omnyshell_client_web.dart' show ShellSessionPort;
 import 'package:web/web.dart' as web;
 
 import '../../app/app_context.dart';
 import '../../core/app_error.dart';
-import '../../terminal/remote_session_io.dart';
-import '../../terminal/session_bridge.dart';
+import '../../terminal/terminal_accessory.dart';
 import '../../terminal/terminal_view.dart';
+import '../../terminal/web_shell_host.dart';
 import '../../terminal/xterm_terminal_view.dart';
 import '../dom.dart';
 import '../widgets.dart';
 
 /// The interactive terminal view: opens (or resumes) a shell session on a node
-/// and wires it to an xterm.js terminal via a [SessionBridge].
+/// and drives it with a [WebShellHost] (prompt, echo, line editing over the
+/// shared `InteractiveShellController`) wired to an xterm.js terminal.
 ///
 /// A [sessionRef] of `new` opens a fresh shell; any other value resumes that
 /// session. The terminal factory and session opener are injectable so the
@@ -29,28 +31,40 @@ class SessionViewScreen implements Screen {
   /// Builds the terminal surface inside the given host element.
   final TerminalView Function(web.HTMLElement host) terminalFactory;
 
-  /// Opens the session and returns its I/O, given the terminal geometry.
-  final Future<SessionIo> Function(int cols, int rows) opener;
+  /// Opens the session and returns it (a `RemoteSession`, which is a
+  /// [ShellSessionPort]), given the terminal geometry.
+  final Future<ShellSessionPort> Function(int cols, int rows) opener;
+
+  /// Reads the clipboard for the Paste key (injectable in tests).
+  final ClipboardReader clipboardRead;
+
+  /// Writes the clipboard for the Copy key (injectable in tests).
+  final ClipboardWriter clipboardWrite;
 
   @override
   late final web.HTMLElement element;
 
   late final web.HTMLElement _host;
   late final web.HTMLElement _status;
+  late final web.HTMLElement _accessory;
   TerminalView? _term;
-  SessionBridge? _bridge;
+  WebShellHost? _shell;
   bool _finished = false;
   void Function()? _detachResize;
 
-  /// Builds the screen. Production callers omit [terminalFactory]/[opener].
+  /// Builds the screen. Production callers omit the injected hooks.
   SessionViewScreen(
     this.ctx,
     this.nodeId,
     this.sessionRef, {
     TerminalView Function(web.HTMLElement host)? terminalFactory,
-    Future<SessionIo> Function(int cols, int rows)? opener,
+    Future<ShellSessionPort> Function(int cols, int rows)? opener,
+    ClipboardReader? clipboardRead,
+    ClipboardWriter? clipboardWrite,
   }) : terminalFactory = terminalFactory ?? ((host) => XtermTerminalView(host)),
-       opener = opener ?? _defaultOpener(ctx, nodeId, sessionRef) {
+       opener = opener ?? _defaultOpener(ctx, nodeId, sessionRef),
+       clipboardRead = clipboardRead ?? defaultClipboardRead,
+       clipboardWrite = clipboardWrite ?? defaultClipboardWrite {
     _host = el(
       'div',
       classes: 'terminal-host',
@@ -58,10 +72,11 @@ class SessionViewScreen implements Screen {
       ariaLabel: 'Terminal',
     );
     _status = div(classes: 'row');
+    _accessory = div();
 
     element = el(
       'div',
-      classes: 'stack',
+      classes: 'stack terminal-screen',
       children: [
         el(
           'div',
@@ -85,6 +100,7 @@ class SessionViewScreen implements Screen {
           ],
         ),
         el('div', classes: 'card terminal-card', children: [_host]),
+        _accessory,
       ],
     );
 
@@ -93,21 +109,19 @@ class SessionViewScreen implements Screen {
     scheduleMicrotask(_start);
   }
 
-  static Future<SessionIo> Function(int, int) _defaultOpener(
+  static Future<ShellSessionPort> Function(int, int) _defaultOpener(
     AppContext ctx,
     String nodeId,
     String sessionRef,
-  ) => (cols, rows) async {
-    final session = sessionRef == 'new'
-        ? await ctx.service.openShell(nodeId: nodeId, cols: cols, rows: rows)
-        : await ctx.service.resumeSession(
-            nodeId: nodeId,
-            sessionRef: sessionRef,
-            cols: cols,
-            rows: rows,
-          );
-    return RemoteSessionIo(session);
-  };
+  ) =>
+      (cols, rows) async => sessionRef == 'new'
+      ? await ctx.service.openShell(nodeId: nodeId, cols: cols, rows: rows)
+      : await ctx.service.resumeSession(
+          nodeId: nodeId,
+          sessionRef: sessionRef,
+          cols: cols,
+          rows: rows,
+        );
 
   Future<void> _start() async {
     final TerminalView term;
@@ -123,9 +137,25 @@ class SessionViewScreen implements Screen {
     final rows = size.rows > 0 ? size.rows : 24;
 
     try {
-      final io = await opener(cols, rows);
-      _bridge = SessionBridge(term, io);
+      final session = await opener(cols, rows);
+      final shell = _shell = WebShellHost(
+        term: term,
+        session: session,
+        principal: ctx.service.principal?.id.value ?? 'user',
+        nodeId: nodeId,
+      );
       clearChildren(_status);
+      // Mount the on-screen accessory key bar (Esc/Tab/Ctrl/arrows/…, copy/paste).
+      mount(
+        _accessory,
+        TerminalAccessoryBar(
+          keys: shell,
+          term: term,
+          clipboardRead: clipboardRead,
+          clipboardWrite: clipboardWrite,
+          onToast: ctx.toasts.show,
+        ).element,
+      );
       term.focus();
       _detachResize = on(web.window, 'resize', (_) {
         if (_term is XtermTerminalView) (_term! as XtermTerminalView).fit();
@@ -146,7 +176,7 @@ class SessionViewScreen implements Screen {
   Future<void> _detach() async {
     if (_finished) return;
     _finished = true;
-    await _bridge?.detach();
+    await _shell?.detach();
     ctx.toasts.success('Session detached — resume it from the list.');
     ctx.router.go('/nodes/${Uri.encodeComponent(nodeId)}/sessions');
   }
@@ -154,7 +184,7 @@ class SessionViewScreen implements Screen {
   Future<void> _terminate() async {
     if (_finished) return;
     _finished = true;
-    await _bridge?.close();
+    await _shell?.close();
     ctx.toasts.success('Session terminated.');
     ctx.router.go('/nodes/${Uri.encodeComponent(nodeId)}/sessions');
   }
@@ -163,11 +193,11 @@ class SessionViewScreen implements Screen {
   void dispose() {
     _detachResize?.call();
     // Navigating away from a live session detaches it so it stays resumable.
-    if (!_finished && _bridge != null && !_bridge!.ended) {
+    if (!_finished && _shell != null && !_shell!.ended) {
       _finished = true;
-      unawaited(_bridge!.detach());
+      unawaited(_shell!.detach());
     } else {
-      unawaited(_bridge?.dispose());
+      unawaited(_shell?.dispose());
     }
     _term?.dispose();
   }

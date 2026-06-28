@@ -29,6 +29,12 @@ extension type XTerminal._(JSObject _) implements JSObject {
   /// Gives the terminal focus.
   external void focus();
 
+  /// The currently selected text.
+  external String getSelection();
+
+  /// Clears any active selection.
+  external void clearSelection();
+
   /// Disposes the terminal.
   external void dispose();
 

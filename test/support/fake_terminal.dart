@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:typed_data';
 
+import 'package:omnyshell/omnyshell_client_web.dart'
+    show SessionId, ShellFamily, ShellSessionPort;
 import 'package:omnyshell_web/terminal/terminal_view.dart';
 
 /// A scriptable [TerminalView] for tests: records output and lets tests drive
@@ -51,14 +54,33 @@ class FakeTerminalView implements TerminalView {
   @override
   void focus() => focused = true;
 
+  /// Test-settable selection text returned by [selection].
+  String selectionText = '';
+
+  @override
+  String get selection => selectionText;
+
+  @override
+  void clearSelection() => selectionText = '';
+
   @override
   void dispose() => disposed = true;
 }
 
-/// A scriptable [SessionIo] for tests.
-class FakeSessionIo implements SessionIo {
-  final StreamController<List<int>> _output = StreamController<List<int>>();
+/// A scriptable [ShellSessionPort] for tests (separate stdout/stderr, mirroring
+/// `RemoteSession`).
+class FakeShellSessionPort implements ShellSessionPort {
+  final StreamController<Uint8List> _stdout = StreamController<Uint8List>();
+  final StreamController<Uint8List> _stderr = StreamController<Uint8List>();
   final Completer<int> _exit = Completer<int>();
+
+  @override
+  ShellFamily shellFamily;
+
+  @override
+  SessionId? id;
+
+  bool _wasDetached = false;
 
   /// stdin chunks received.
   final List<List<int>> stdin = [];
@@ -74,9 +96,16 @@ class FakeSessionIo implements SessionIo {
   bool detached = false;
   bool closed = false;
 
-  /// Pushes remote output (no-op once the session has closed/detached).
+  FakeShellSessionPort({this.shellFamily = ShellFamily.posix, this.id});
+
+  /// Pushes remote stdout (no-op once closed/detached).
   void emit(List<int> bytes) {
-    if (!_output.isClosed) _output.add(bytes);
+    if (!_stdout.isClosed) _stdout.add(Uint8List.fromList(bytes));
+  }
+
+  /// Pushes remote stderr.
+  void emitStderr(List<int> bytes) {
+    if (!_stderr.isClosed) _stderr.add(Uint8List.fromList(bytes));
   }
 
   /// Completes the session with [code].
@@ -85,32 +114,45 @@ class FakeSessionIo implements SessionIo {
   }
 
   @override
-  Stream<List<int>> get output => _output.stream;
+  Stream<Uint8List> get stdout => _stdout.stream;
 
   @override
-  void writeStdin(List<int> data) => stdin.add(data);
-
-  @override
-  void resize(int cols, int rows) => resizes.add((cols, rows));
-
-  @override
-  void grantWindow(int bytes) => grants.add(bytes);
-
-  @override
-  void interrupt() => interrupts++;
+  Stream<Uint8List> get stderr => _stderr.stream;
 
   @override
   Future<int> get exitCode => _exit.future;
 
   @override
+  bool get wasDetached => _wasDetached;
+
+  @override
+  void writeStdin(List<int> data) => stdin.add(data);
+
+  @override
+  void resize({required int cols, required int rows}) =>
+      resizes.add((cols, rows));
+
+  @override
+  void grantWindow(int credit) => grants.add(credit);
+
+  @override
+  void interrupt() => interrupts++;
+
+  @override
   Future<void> detach() async {
     detached = true;
-    if (!_output.isClosed) await _output.close();
+    _wasDetached = true;
+    await _close();
   }
 
   @override
   Future<void> close() async {
     closed = true;
-    if (!_output.isClosed) await _output.close();
+    await _close();
+  }
+
+  Future<void> _close() async {
+    if (!_stdout.isClosed) await _stdout.close();
+    if (!_stderr.isClosed) await _stderr.close();
   }
 }

@@ -9,7 +9,7 @@ environment:
   sdk: ^3.12.2
 
 dependencies:
-  omnyshell: ^1.29.0
+  omnyshell: ^1.30.0
   web: ^1.1.1
 
 dev_dependencies:
