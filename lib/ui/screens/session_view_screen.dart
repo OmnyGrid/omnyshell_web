@@ -267,8 +267,9 @@ class SessionViewScreen implements Screen {
     if (t is XtermTerminalView) t.fit();
   }
 
-  /// Floors the terminal height at the available space —
-  /// `viewport − header − toolbar − key bar` — so it always uses the full area.
+  /// Floors the terminal height at the space available between everything above
+  /// it (header, toolbar, paddings, gaps) and the key bar reserved below it, so
+  /// it uses the full area while never overlapping the key bar.
   ///
   /// Skipped in fullscreen (the fixed container already fills the screen) and
   /// while the keyboard is open (the terminal must be free to shrink into the
@@ -281,19 +282,19 @@ class SessionViewScreen implements Screen {
       _host.style.removeProperty('min-height');
       return;
     }
+    // Measure the natural layout first (clear any prior floor so the rects are
+    // not skewed by it). The host's top offset captures all chrome above it; the
+    // key-bar box (plus the gap to it) is what must be reserved below.
+    _host.style.removeProperty('min-height');
     final viewport =
-        web.window.visualViewport?.height ??
-        web.window.innerHeight.toDouble();
-    var chrome = _accessory.offsetHeight.toDouble();
-    final header = web.document.querySelector('.app-header') as web.HTMLElement?;
-    if (header != null) chrome += header.offsetHeight;
-    final toolbar = element.querySelector('.toolbar') as web.HTMLElement?;
-    if (toolbar != null) chrome += toolbar.offsetHeight;
-    final minHeight = viewport - chrome;
-    if (minHeight > 0) {
-      _host.style.minHeight = '${minHeight.round()}px';
-    } else {
-      _host.style.removeProperty('min-height');
+        web.window.visualViewport?.height ?? web.window.innerHeight.toDouble();
+    final hostRect = _host.getBoundingClientRect();
+    final barRect = _accessory.getBoundingClientRect();
+    final gapBelow = barRect.top - hostRect.bottom;
+    final reserveBelow = barRect.height + (gapBelow > 0 ? gapBelow : 0);
+    final available = viewport - hostRect.top - reserveBelow;
+    if (available > 0) {
+      _host.style.minHeight = '${available.round()}px';
     }
   }
 

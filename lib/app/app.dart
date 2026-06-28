@@ -69,6 +69,11 @@ class App {
     _screen?.dispose();
     _screen = _screenFor(route, connected);
     mount(_main, _screen!.element);
+    // A new screen starts at the top — don't inherit the previous screen's
+    // scroll position (e.g. a long nodes/sessions list).
+    web.document.documentElement?.scrollTop = 0;
+    web.document.body?.scrollTop = 0;
+    _main.scrollTop = 0;
   }
 
   Screen _screenFor(RouteMatch route, bool connected) {

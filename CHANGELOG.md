@@ -29,6 +29,14 @@
 
 ### Changed
 
+- The terminal floors its height at the available space (between the chrome
+  above it and the key bar reserved below it) so it always uses the full area
+  without overlapping the key bar — except in fullscreen or while the keyboard
+  is open.
+- Navigating to another screen (nodes / sessions / …) now resets scroll to the
+  top instead of inheriting the previous screen's scroll position.
+- Long key/value entries (e.g. a node UID) truncate with an ellipsis instead of
+  widening the page on mobile.
 - Entering/exiting fullscreen now scrolls the terminal to the bottom (latest
   output / prompt) and re-fits at a few delays (next frame, 120/300/500 ms) to
   catch the mobile browser chrome animating in/out, so the terminal box and key
