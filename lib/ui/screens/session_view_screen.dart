@@ -12,6 +12,7 @@ import 'package:web/web.dart' as web;
 
 import '../../app/app_context.dart';
 import '../../core/app_error.dart';
+import '../../terminal/command_history.dart';
 import '../../terminal/terminal_accessory.dart';
 import '../../terminal/terminal_view.dart';
 import '../../terminal/web_shell_host.dart';
@@ -208,6 +209,12 @@ class SessionViewScreen implements Screen {
         nodeInfo: () => _node,
         principalInfo: ctx.service.principal,
         remoteSession: session is RemoteSession ? session : null,
+        // Per principal+node command history (Up/Down), persisted to
+        // localStorage — the browser analogue of the CLI's history file.
+        history: CommandHistory.load(
+          kv: ctx.kv,
+          key: '${ctx.service.principal?.id.value ?? 'user'}@$nodeId',
+        ),
         onSessionExit: () => _leaveAfterLocalCommand(detached: false),
         onSessionDetached: () => _leaveAfterLocalCommand(detached: true),
       );

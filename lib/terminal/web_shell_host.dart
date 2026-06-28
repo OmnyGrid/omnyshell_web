@@ -13,9 +13,11 @@ import 'package:omnyshell/omnyshell_client_web.dart'
         NodeDescriptor,
         Principal,
         RemoteSession,
+        HistoryCursor,
         ShellPromptState,
         ShellSessionPort;
 
+import 'command_history.dart';
 import 'terminal_view.dart';
 
 /// The browser host for an [InteractiveShellController]: local line editing and
@@ -63,6 +65,13 @@ class WebShellHost implements TerminalKeys {
   /// Invoked after a local `:detach` parks the session.
   final void Function()? _onSessionDetached;
 
+  /// Persistent command history, or `null` to disable Up/Down navigation.
+  final CommandHistory? _history;
+
+  /// Up/Down navigation cursor over [_history] (shared with the CLI), or `null`
+  /// when history is disabled.
+  final HistoryCursor? _histCursor;
+
   final List<int> _line = [];
   bool _passthrough = false;
   bool _ctrlArmed = false;
@@ -91,6 +100,7 @@ class WebShellHost implements TerminalKeys {
     NodeDescriptor? Function()? nodeInfo,
     Principal? principalInfo,
     RemoteSession? remoteSession,
+    CommandHistory? history,
     void Function()? onSessionExit,
     void Function()? onSessionDetached,
   }) : _term = term,
@@ -102,6 +112,8 @@ class WebShellHost implements TerminalKeys {
        _nodeInfo = nodeInfo,
        _principalInfo = principalInfo,
        _remoteSession = remoteSession,
+       _history = history,
+       _histCursor = history?.cursor(),
        _onSessionExit = onSessionExit,
        _onSessionDetached = onSessionDetached,
        _startedAt = startedAt ?? DateTime.now() {
@@ -164,8 +176,11 @@ class WebShellHost implements TerminalKeys {
     for (var i = 0; i < bytes.length; i++) {
       final c = bytes[i];
       switch (c) {
-        case 0x1b: // Escape sequence (arrows, fn-keys) — not handled at idle.
-          return;
+        case 0x1b: // Escape sequence (arrows walk history; others ignored).
+          final consumed = _handleEscape(bytes, i);
+          if (consumed == 0) return; // unknown/incomplete: drop the rest
+          i += consumed - 1; // the for-loop's i++ advances past the last byte
+          continue;
         case 0x09: // Tab: remote completion (when a completer is wired).
           if (_onComplete != null) unawaited(_complete());
           return;
@@ -178,10 +193,12 @@ class WebShellHost implements TerminalKeys {
           if (_line.isNotEmpty) {
             _line.removeLast();
             _term.write(const [0x08, 0x20, 0x08]);
+            _histCursor?.reset();
           }
         case 0x03: // Ctrl-C at idle: discard the line, repaint the prompt.
           _term.write(utf8.encode('^C\r\n'));
           _line.clear();
+          _histCursor?.reset();
           _term.write(utf8.encode(_prompt(_lastPrompt)));
           return;
         case 0x04: // Ctrl-D on an empty line: end the session.
@@ -197,14 +214,72 @@ class WebShellHost implements TerminalKeys {
           if (c >= 0x20) {
             _line.add(c);
             _term.write([c]);
+            _histCursor?.reset();
           }
       }
     }
   }
 
+  /// Handles a CSI escape sequence starting at [i] (where `bytes[i]` is ESC).
+  ///
+  /// Up/Down walk the command history; the remaining cursor/navigation keys are
+  /// consumed and ignored (this host keeps the cursor at the end of the line).
+  /// Returns the number of bytes consumed, or 0 when the sequence is unknown or
+  /// truncated in this chunk — the caller then drops the rest, as before.
+  int _handleEscape(List<int> bytes, int i) {
+    // CSI: ESC '[' <final> (PgUp/PgDn add a '~' terminator).
+    if (i + 2 >= bytes.length || bytes[i + 1] != 0x5b) return 0;
+    switch (bytes[i + 2]) {
+      case 0x41: // Up
+        _historyPrev();
+        return 3;
+      case 0x42: // Down
+        _historyNext();
+        return 3;
+      case 0x43: // Right
+      case 0x44: // Left
+      case 0x48: // Home
+      case 0x46: // End
+        return 3;
+      case 0x35: // PgUp: ESC [ 5 ~
+      case 0x36: // PgDn: ESC [ 6 ~
+        return (i + 3 < bytes.length && bytes[i + 3] == 0x7e) ? 4 : 0;
+    }
+    return 0;
+  }
+
+  /// Replaces the current line with the previous (older) matching history entry.
+  void _historyPrev() {
+    final cursor = _histCursor;
+    if (cursor == null) return;
+    // No mid-line cursor at idle, so the search prefix is the whole line.
+    final line = utf8.decode(_line, allowMalformed: true);
+    final text = cursor.up(line: line, prefix: line);
+    if (text != null) _replaceLine(text);
+  }
+
+  /// Replaces the current line with the next (newer) matching history entry, or
+  /// the stashed in-progress line once past the most recent match.
+  void _historyNext() {
+    final text = _histCursor?.down();
+    if (text != null) _replaceLine(text);
+  }
+
+  /// Swaps the line buffer for [text] and repaints it on the current row.
+  void _replaceLine(String text) {
+    _line
+      ..clear()
+      ..addAll(utf8.encode(text));
+    _redrawLine(text);
+  }
+
   void _commit() {
     final line = utf8.decode(_line, allowMalformed: true);
     _line.clear();
+    // Record the command and reset history browsing, mirroring the CLI's
+    // connect loop (blank lines and consecutive duplicates are skipped by add).
+    _history?.add(line);
+    _histCursor?.reset();
     _term.write(utf8.encode('\r\n'));
     // Local `:` commands (help/tree/tunnel/…) are handled client-side and never
     // forwarded to the remote shell — exactly as the CLI's connect loop does.
@@ -339,6 +414,7 @@ class WebShellHost implements TerminalKeys {
     _line
       ..clear()
       ..addAll(utf8.encode(newLine));
+    _histCursor?.reset();
     _redrawLine(newLine);
   }
 

@@ -82,6 +82,7 @@ class DomHarness {
       theme: theme,
       router: router,
       settings: settings,
+      kv: kv,
       toasts: toasts,
     );
 

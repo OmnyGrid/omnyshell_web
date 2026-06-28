@@ -5,6 +5,7 @@ import '../router/router.dart';
 import '../state/auth_controller.dart';
 import '../state/nodes_controller.dart';
 import '../state/theme_controller.dart';
+import '../storage/key_value_store.dart';
 import '../storage/settings_store.dart';
 import '../ui/toasts.dart';
 
@@ -28,6 +29,10 @@ class AppContext {
   /// Persisted settings.
   final SettingsStore settings;
 
+  /// Raw key/value store (used by features needing their own namespace, e.g.
+  /// per-session command history).
+  final KeyValueStore kv;
+
   /// Transient notifications.
   final Toasts toasts;
 
@@ -39,6 +44,7 @@ class AppContext {
     required this.theme,
     required this.router,
     required this.settings,
+    required this.kv,
     required this.toasts,
   });
 }
