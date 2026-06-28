@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Disable pinch-zoom on mobile (the terminal manages its own layout/scroll).
+         iOS Safari ignores user-scalable, so boot.js also blocks gesture events. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="color-scheme" content="light dark">
     <meta name="description" content="OmnyShell web client — connect to a Hub, discover nodes, and manage sessions from the browser.">
     <title>OmnyShell</title>
