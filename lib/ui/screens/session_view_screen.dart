@@ -65,6 +65,7 @@ class SessionViewScreen implements Screen {
   void Function()? _detachViewport;
   web.ResizeObserver? _resizeObserver;
   bool _fitScheduled = false;
+  Timer? _settleTimer;
 
   /// Builds the screen. Production callers omit the injected hooks.
   SessionViewScreen(
@@ -228,7 +229,7 @@ class SessionViewScreen implements Screen {
       // on its changes too. boot.js does the CSS layout binding.
       final vv = web.window.visualViewport;
       if (vv != null) {
-        _detachViewport = on(vv, 'resize', (_) => _scheduleFit());
+        _detachViewport = on(vv, 'resize', (_) => _scheduleSettle());
       }
       // The robust trigger: refit whenever the terminal host actually changes
       // size (fullscreen toggle, keyboard, rotation, …). A ResizeObserver fires
@@ -278,6 +279,17 @@ class SessionViewScreen implements Screen {
         _fit();
       }.toJS,
     );
+  }
+
+  /// Refits now (next frame) and once more after the viewport stops changing.
+  /// The keyboard open/close animates the visual viewport over many events; the
+  /// trailing timer (reset on each call) fires only after it settles, so the
+  /// final fit measures the correct height (e.g. restoring it when the keyboard
+  /// closes in normal mode).
+  void _scheduleSettle() {
+    _scheduleFit();
+    _settleTimer?.cancel();
+    _settleTimer = Timer(const Duration(milliseconds: 200), _fit);
   }
 
   void _toggleFullscreen() => _setFullscreen(!_fullscreen);
@@ -375,6 +387,7 @@ class SessionViewScreen implements Screen {
     _detachOrientation?.call();
     _detachViewport?.call();
     _resizeObserver?.disconnect();
+    _settleTimer?.cancel();
     // Release the page scroll lock and any fullscreen state on the way out.
     web.document.documentElement?.classList.remove('terminal-active');
     if (_fullscreen) {
