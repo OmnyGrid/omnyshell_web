@@ -1,10 +1,13 @@
 name: Deploy to GitHub Pages
 
-# Deploy only when a GitHub release is published (plus manual runs), so the
-# live site tracks tagged releases rather than every push to master.
+# The github-pages environment only permits deploys from the master branch (not
+# release tags), so we deploy from master rather than the release tag. To keep
+# deploys release-gated (not on every merge), the `gate` job only proceeds when
+# the pubspec version changed in the push — i.e. a release bump landed — or when
+# the workflow is run manually.
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main, master]
   workflow_dispatch:
 
 # Allow the workflow to publish to Pages via OIDC.
@@ -19,7 +22,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.check.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - id: check
+        name: Deploy only on a version bump (or manual run)
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Manual run — deploying."
+          elif git diff HEAD^ HEAD -- pubspec.yaml | grep -qE '^\+version:'; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Version bump detected — deploying."
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "No version bump — skipping deploy."
+          fi
+
   build:
+    needs: gate
+    if: needs.gate.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
