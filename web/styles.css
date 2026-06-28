@@ -316,7 +316,12 @@ html.terminal-active { height: 100%; overflow: hidden; overscroll-behavior: none
    with no scroll to reach them. --vvh (visualViewport) is exact; 100dvh is the
    CSS fallback that already accounts for the dynamic toolbars. */
 html.terminal-active body {
-  height: var(--vvh, 100dvh);
+  /* Full *visible* viewport: dvh excludes the browser chrome (unlike `100%` =
+     layout viewport) but, unlike --vvh, does NOT shrink for the keyboard — the
+     keyboard case is handled by the fixed `.keyboard-open` screen, so the body
+     must stay full height or it'd be left at the keyboard-open (~half) size. */
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
 }
