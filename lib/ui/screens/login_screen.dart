@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:omnyshell/omnyshell_client_web.dart' show omnyShellVersion;
 import 'package:web/web.dart' as web;
 
 import '../../app/app_context.dart';
@@ -106,7 +107,7 @@ class LoginScreen implements Screen {
               classes: 'hint version-footer',
               text:
                   'Web Client v$webClientVersion · '
-                  'OmnyShell v$bundledOmnyShellVersion',
+                  'OmnyShell v$omnyShellVersion',
             ),
           ],
         ),
