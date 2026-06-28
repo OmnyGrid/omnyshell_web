@@ -71,6 +71,26 @@ void main() {
     h.dispose();
   });
 
+  test('New Session opens a fresh shell without going back', () async {
+    final h = await connectedHarness(hubWithSessions());
+    h.ctx.router.start();
+    final screen = SessionsScreen(h.ctx, 'web-01');
+    mount(h.container, screen.element);
+    await pump();
+
+    final btn = buttonWithText(h.container, 'New Session');
+    expect(btn, isNotNull);
+    btn!.click();
+    await pump();
+
+    expect(h.ctx.router.current.value.pattern, '/nodes/:id/sessions/:sid');
+    expect(web.window.location.hash, contains('/sessions/new'));
+
+    h.ctx.router.stop();
+    screen.dispose();
+    h.dispose();
+  });
+
   test('kill asks for confirmation then removes the session', () async {
     final h = await connectedHarness(hubWithSessions());
     final screen = SessionsScreen(h.ctx, 'web-01');

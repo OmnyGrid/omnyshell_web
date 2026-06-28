@@ -16,6 +16,10 @@
 
 ### Changed
 
+- Added a **New Session** button to the sessions list so a fresh shell can be
+  opened without going back to the node screen.
+- Removed the redundant session title ("New shell" / "Session …") from the
+  terminal toolbar to reclaim space.
 - The on-screen accessory key bar now places Home/End/PgUp/PgDn at the end
   (after Copy/Paste).
 - Disabled pinch-to-zoom on mobile (viewport meta + `touch-action` + iOS gesture

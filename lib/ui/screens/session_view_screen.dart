@@ -105,10 +105,6 @@ class SessionViewScreen implements Screen {
                 '/nodes/${Uri.encodeComponent(nodeId)}/sessions',
               ),
             ),
-            el(
-              'h1',
-              text: sessionRef == 'new' ? 'New shell' : 'Session $sessionRef',
-            ),
             el('div', classes: 'grow'),
             _status,
             _fsToggle,

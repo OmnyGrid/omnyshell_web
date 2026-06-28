@@ -50,6 +50,13 @@ class SessionsScreen implements Screen {
             ),
             el('h1', text: 'Sessions'),
             el('div', classes: 'grow'),
+            button(
+              'New Session',
+              primary: true,
+              onClick: () => ctx.router.go(
+                '/nodes/${Uri.encodeComponent(nodeId)}/sessions/new',
+              ),
+            ),
             _refresh,
           ],
         ),
