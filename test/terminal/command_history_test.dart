@@ -42,10 +42,10 @@ void main() {
         ..add('b')
         ..add('c');
       expect(h.entries, ['b', 'c']);
-      expect(
-        CommandHistory.load(kv: kv, key: 'k', maxEntries: 2).entries,
-        ['b', 'c'],
-      );
+      expect(CommandHistory.load(kv: kv, key: 'k', maxEntries: 2).entries, [
+        'b',
+        'c',
+      ]);
     });
 
     test('namespaces storage keys distinctly from settings', () {
@@ -70,7 +70,9 @@ void main() {
     });
 
     test('prefix restricts the entries Up visits', () {
-      final h = CommandHistory.inMemory(entries: ['git status', 'ls', 'git log']);
+      final h = CommandHistory.inMemory(
+        entries: ['git status', 'ls', 'git log'],
+      );
       final cursor = h.cursor();
       expect(cursor.up(line: 'git', prefix: 'git'), 'git log');
       expect(cursor.up(line: 'git', prefix: 'git'), 'git status');
