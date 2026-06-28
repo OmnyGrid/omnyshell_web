@@ -37,6 +37,27 @@ void main() {
     return null;
   }
 
+  test('locks page scroll while mounted, releases it on dispose', () async {
+    final h = await connected();
+    final root = web.document.documentElement!;
+    expect(root.classList.contains('terminal-active'), isFalse);
+
+    final screen = SessionViewScreen(
+      h.ctx,
+      'web-01',
+      'new',
+      terminalFactory: (_) => FakeTerminalView(),
+      opener: (cols, rows) async => FakeShellSessionPort(),
+    );
+    mount(h.container, screen.element);
+    await pump();
+    expect(root.classList.contains('terminal-active'), isTrue);
+
+    screen.dispose();
+    expect(root.classList.contains('terminal-active'), isFalse);
+    h.dispose();
+  });
+
   test('connects and wires terminal output and input', () async {
     final h = await connected();
     final term = FakeTerminalView(cols: 90, rows: 30);

@@ -16,6 +16,9 @@
 
 ### Changed
 
+- On the terminal screen the page no longer scrolls or rubber-bands; the
+  terminal fills the space below the toolbar and only its own content (xterm
+  scrollback) scrolls.
 - The terminal now stays usable with the mobile soft keyboard open: the layout
   tracks the visual viewport so the on-screen key bar sits just above the
   keyboard and the prompt row stays visible (xterm re-fits on keyboard

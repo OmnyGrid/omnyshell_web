@@ -126,6 +126,9 @@ class SessionViewScreen implements Screen {
     );
 
     _status.appendChild(loadingRow('Connecting…'));
+    // Lock the page to the viewport so only the terminal content scrolls (no
+    // body/rubber-band scroll); removed again on dispose.
+    web.document.documentElement?.classList.add('terminal-active');
     // Defer until mounted so the host has layout for the terminal fit.
     scheduleMicrotask(_start);
   }
@@ -328,7 +331,8 @@ class SessionViewScreen implements Screen {
     _detachResize?.call();
     _detachOrientation?.call();
     _detachViewport?.call();
-    // Don't leak fullscreen state onto the rest of the app when navigating away.
+    // Release the page scroll lock and any fullscreen state on the way out.
+    web.document.documentElement?.classList.remove('terminal-active');
     if (_fullscreen) {
       web.document.documentElement?.classList.remove('term-fullscreen');
     }
