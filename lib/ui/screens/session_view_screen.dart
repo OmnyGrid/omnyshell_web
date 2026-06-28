@@ -293,10 +293,30 @@ class SessionViewScreen implements Screen {
       'aria-label',
       on ? 'Exit fullscreen' : 'Enter fullscreen',
     );
-    // The ResizeObserver refits once the new layout applies; this is a fallback
-    // for browsers where toggling fixed↔in-flow doesn't fire it promptly.
+    _settleAfterToggle();
+  }
+
+  /// Re-fits the terminal and pins it to the bottom (latest output / prompt)
+  /// after a fullscreen toggle.
+  ///
+  /// On mobile, toggling fullscreen also animates the browser chrome (URL/tool
+  /// bars) in or out, and the viewport keeps changing size for a few hundred ms
+  /// after the class flips. A single immediate fit would measure the pre-
+  /// animation box and leave the terminal/key bar mis-sized, so we force a
+  /// recompute now (next frame) and again after the chrome has settled.
+  void _settleAfterToggle() {
+    void apply() {
+      _fit();
+      _term?.scrollToBottom();
+    }
+
+    // Nudge a layout recompute, then refit on the next frame.
     _scheduleFit();
-    Timer(const Duration(milliseconds: 120), _fit);
+    web.window.requestAnimationFrame(((double _) => apply()).toJS);
+    // Catch the post-animation viewport size (mobile chrome show/hide).
+    for (final ms in const [120, 300, 500]) {
+      Timer(Duration(milliseconds: ms), apply);
+    }
   }
 
   void _showError(AppError error) {

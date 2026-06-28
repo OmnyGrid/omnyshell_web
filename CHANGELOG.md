@@ -29,6 +29,10 @@
 
 ### Changed
 
+- Entering/exiting fullscreen now scrolls the terminal to the bottom (latest
+  output / prompt) and re-fits at a few delays (next frame, 120/300/500 ms) to
+  catch the mobile browser chrome animating in/out, so the terminal box and key
+  bar settle to the right size/position.
 - On the terminal screen the page no longer scrolls or rubber-bands; the
   terminal fills the space below the toolbar and only its own content (xterm
   scrollback) scrolls.

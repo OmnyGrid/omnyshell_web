@@ -153,6 +153,28 @@ void main() {
     h.dispose();
   });
 
+  test('fullscreen toggle scrolls the terminal to the bottom', () async {
+    final h = await connected();
+    final term = FakeTerminalView();
+    final screen = SessionViewScreen(
+      h.ctx,
+      'web-01',
+      'new',
+      terminalFactory: (_) => term,
+      opener: (cols, rows) async => FakeShellSessionPort(),
+    );
+    mount(h.container, screen.element);
+    await pump();
+    final before = term.scrollToBottomCount;
+
+    buttonWithText(h.container, '⤢ Fullscreen')!.click();
+    await pump(60); // let the requestAnimationFrame settle pass run
+    expect(term.scrollToBottomCount, greaterThan(before));
+
+    screen.dispose();
+    h.dispose();
+  });
+
   test('a failed open shows an error banner', () async {
     final h = await connected();
     final screen = SessionViewScreen(
