@@ -262,8 +262,39 @@ class SessionViewScreen implements Screen {
   /// Refits the xterm terminal to its container (after a window resize or a
   /// fullscreen toggle changes the available geometry).
   void _fit() {
+    _applyMinHeight();
     final t = _term;
     if (t is XtermTerminalView) t.fit();
+  }
+
+  /// Floors the terminal height at the available space —
+  /// `viewport − header − toolbar − key bar` — so it always uses the full area.
+  ///
+  /// Skipped in fullscreen (the fixed container already fills the screen) and
+  /// while the keyboard is open (the terminal must be free to shrink into the
+  /// space above the keyboard, with no minimum forcing overlap).
+  void _applyMinHeight() {
+    final kbOpen =
+        web.document.documentElement?.classList.contains('keyboard-open') ??
+        false;
+    if (_fullscreen || kbOpen) {
+      _host.style.removeProperty('min-height');
+      return;
+    }
+    final viewport =
+        web.window.visualViewport?.height ??
+        web.window.innerHeight.toDouble();
+    var chrome = _accessory.offsetHeight.toDouble();
+    final header = web.document.querySelector('.app-header') as web.HTMLElement?;
+    if (header != null) chrome += header.offsetHeight;
+    final toolbar = element.querySelector('.toolbar') as web.HTMLElement?;
+    if (toolbar != null) chrome += toolbar.offsetHeight;
+    final minHeight = viewport - chrome;
+    if (minHeight > 0) {
+      _host.style.minHeight = '${minHeight.round()}px';
+    } else {
+      _host.style.removeProperty('min-height');
+    }
   }
 
   /// Coalesces refit requests to once per frame and runs the fit in a
