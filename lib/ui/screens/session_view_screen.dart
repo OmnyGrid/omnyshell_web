@@ -113,7 +113,8 @@ class SessionViewScreen implements Screen {
     AppContext ctx,
     String nodeId,
     String sessionRef,
-  ) => (cols, rows) async => sessionRef == 'new'
+  ) =>
+      (cols, rows) async => sessionRef == 'new'
       ? await ctx.service.openShell(nodeId: nodeId, cols: cols, rows: rows)
       : await ctx.service.resumeSession(
           nodeId: nodeId,
