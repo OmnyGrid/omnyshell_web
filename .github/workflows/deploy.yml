@@ -1,8 +1,10 @@
 name: Deploy to GitHub Pages
 
+# Deploy only when a GitHub release is published (plus manual runs), so the
+# live site tracks tagged releases rather than every push to master.
 on:
-  push:
-    branches: [main, master]
+  release:
+    types: [published]
   workflow_dispatch:
 
 # Allow the workflow to publish to Pages via OIDC.
@@ -11,7 +13,7 @@ permissions:
   pages: write
   id-token: write
 
-# One deploy at a time; a newer push supersedes an in-flight one.
+# One deploy at a time; a newer deploy supersedes an in-flight one.
 concurrency:
   group: pages
   cancel-in-progress: true
