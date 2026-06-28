@@ -29,6 +29,18 @@ void main() {
     screen.dispose();
   });
 
+  test('hub and principal opt out of mobile auto-capitalization', () {
+    final screen = LoginScreen(h.ctx);
+    mount(h.container, screen.element);
+    for (final id in ['#login-hub', '#login-principal']) {
+      final field = query(h.container, id) as web.HTMLInputElement;
+      expect(field.getAttribute('autocapitalize'), 'none', reason: id);
+      expect(field.getAttribute('autocorrect'), 'off', reason: id);
+      expect(field.spellcheck, isFalse, reason: id);
+    }
+    screen.dispose();
+  });
+
   test('prefills hub and principal from settings', () {
     h.settings
       ..hub = 'wss://saved:8443'

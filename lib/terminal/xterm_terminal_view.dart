@@ -87,6 +87,15 @@ class XtermTerminalView implements TerminalView {
   void clearSelection() => _term.clearSelection();
 
   @override
+  void scrollToBottom() {
+    try {
+      _term.scrollToBottom();
+    } on Object {
+      // Harmless if the terminal isn't ready yet.
+    }
+  }
+
+  @override
   void dispose() {
     _dataSub?.dispose();
     _resizeSub?.dispose();

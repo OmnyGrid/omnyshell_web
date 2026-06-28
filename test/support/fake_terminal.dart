@@ -60,6 +60,12 @@ class FakeTerminalView implements TerminalView {
   @override
   String get selection => selectionText;
 
+  /// Number of times the viewport was scrolled to the bottom.
+  int scrollToBottomCount = 0;
+
+  @override
+  void scrollToBottom() => scrollToBottomCount++;
+
   @override
   void clearSelection() => selectionText = '';
 

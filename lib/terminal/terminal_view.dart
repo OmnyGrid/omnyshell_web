@@ -23,6 +23,9 @@ abstract class TerminalView {
   /// Clears any active selection.
   void clearSelection();
 
+  /// Scrolls the viewport to the bottom (the latest output / prompt).
+  void scrollToBottom();
+
   /// Gives the terminal keyboard focus.
   void focus();
 

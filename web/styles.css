@@ -54,6 +54,9 @@
 * { box-sizing: border-box; }
 
 html, body { height: 100%; }
+/* Allow panning/scrolling but disable pinch-zoom and double-tap zoom on touch
+   devices (the terminal owns its own layout). */
+html { touch-action: pan-x pan-y; }
 
 body {
   margin: 0;
@@ -239,10 +242,37 @@ button.danger:hover { background: var(--danger-weak); }
 
 .kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; }
 .kv dt { color: var(--fg-muted); }
-.kv dd { margin: 0; }
+/* Truncate long values (e.g. a UID) with an ellipsis so they don't widen the
+   page on a phone. min-width:0 lets the grid cell shrink below its content. */
+.kv dd {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .toolbar h1 { margin: 0; }
+
+/* Tighten the terminal screen: no extra gap between the toolbar and the
+   terminal (the generic toolbar margin would otherwise stack with the column
+   gap and waste vertical space). */
+.terminal-screen { gap: 8px; }
+.terminal-screen .toolbar { margin-bottom: 0; }
+
+/* The terminal screen's toolbar carries several controls (Sessions, Fullscreen,
+   Detach, Terminate); keep its buttons compact and let the title shrink so the
+   whole row fits a phone width. */
+.terminal-screen .toolbar { gap: 8px; }
+.terminal-screen .toolbar h1 {
+  font-size: 1rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.terminal-screen .toolbar button { padding: 6px 10px; font-size: 0.85rem; }
 
 /* Terminal */
 .terminal-card { padding: 8px; background: #0b0e12; }
@@ -283,33 +313,92 @@ button.danger:hover { background: var(--danger-weak); }
   border-color: var(--accent);
 }
 
+/* Terminal screen: lock the page to the viewport so only the terminal's own
+   content scrolls — no body/page scroll or mobile rubber-banding. The terminal
+   card flexes to fill the space below the toolbar, and xterm's viewport handles
+   scrollback. Scoped to `.terminal-active` so other screens scroll normally. */
+html.terminal-active { height: 100%; overflow: hidden; overscroll-behavior: none; }
+/* Anchor the app to the *visible* viewport, not the layout viewport: on iOS
+   `height: 100%` is the layout viewport, which is taller than the visible area
+   (Safari's bottom toolbar), so the key bar/last row would fall below the edge
+   with no scroll to reach them. --vvh (visualViewport) is exact; 100dvh is the
+   CSS fallback that already accounts for the dynamic toolbars. */
+html.terminal-active body {
+  height: var(--vvh, 100dvh);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+html.terminal-active #app { height: 100%; min-height: 0; }
+html.terminal-active .app-main {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+/* Fill the available height ONLY when the screen is in normal (in-flow) layout.
+   In fullscreen / keyboard-open it is `position: fixed` and sized by inset +
+   `bottom: var(--kb)`; setting `height: 100%` there would over-constrain the box
+   (top + height wins, so the keyboard `bottom` lift is ignored) and on iOS a
+   fixed `height: 100%` resolves taller than the visible viewport. */
+html.terminal-active:not(.term-fullscreen):not(.keyboard-open) .terminal-screen {
+  height: 100%;
+  min-height: 0;
+}
+html.terminal-active .terminal-card { flex: 1; min-height: 0; }
+html.terminal-active .terminal-host { height: 100%; min-height: 0; max-height: none; }
+/* The terminal's minimum height (viewport − header/toolbar − key bar) is applied
+   inline by the screen controller, and cleared while the keyboard is open. */
+/* Keep scroll chaining inside the terminal even at the scrollback ends. */
+.terminal-host .xterm-viewport { overscroll-behavior: contain; }
+
 /* Fullscreen terminal: fill the whole window, hide app chrome. */
 .term-fullscreen .app-header { display: none; }
 .term-fullscreen .app-main { max-width: none; padding: 0; }
 
-.term-fullscreen .terminal-screen {
+/* Bind the terminal to the *visual* viewport — the area above the on-screen
+   keyboard — in fullscreen, and whenever the soft keyboard is open in any mode.
+   The keyboard overlays content (it doesn't shrink the layout viewport), so
+   without this the accessory key bar and the prompt sit hidden behind it. As a
+   fixed, --vvh-tall flex column [toolbar, terminal(flex:1), accessory], the key
+   bar lands just above the keyboard and the terminal (re-fit from Dart on
+   visualViewport resize) keeps its prompt row visible. --vvh is set by boot.js;
+   it falls back to the full dynamic viewport when there's no keyboard. */
+.term-fullscreen .terminal-screen,
+.keyboard-open .terminal-screen {
   position: fixed;
+  /* Pin to the layout viewport, then raise the bottom edge above the keyboard
+     by its measured inset (--kb, 0 when closed). On iOS `position: fixed`
+     resolves against the layout viewport — which the keyboard does NOT shrink —
+     so lifting `bottom` is far more reliable than sizing by visual height. */
   inset: 0;
+  bottom: var(--kb, 0px);
   z-index: 40;
   gap: 0;
   background: #0b0e12;
 }
-/* Hide the screen toolbar (Sessions / Detach / Terminate / toggle). */
+/* Hide the screen toolbar (Sessions / Detach / Terminate / toggle) in
+   fullscreen. With just the keyboard open it stays, so its controls remain
+   reachable while typing. */
 .term-fullscreen .terminal-screen > .toolbar { display: none; }
 
-.term-fullscreen .terminal-card {
+.term-fullscreen .terminal-card,
+.keyboard-open .terminal-card {
   flex: 1;
   border: 0;
   border-radius: 0;
   padding: 4px;
   padding-top: calc(4px + env(safe-area-inset-top));
 }
-.term-fullscreen .terminal-host {
+.term-fullscreen .terminal-host,
+.keyboard-open .terminal-host {
   height: 100%;
   min-height: 0;
   max-height: none;
 }
-.term-fullscreen .term-accessory { border-radius: 0; }
+.term-fullscreen .term-accessory,
+.keyboard-open .term-accessory { border-radius: 0; }
+/* The keyboard already covers the home-indicator inset, so drop the extra
+   bottom padding that would otherwise lift the key bar away from it. */
+.keyboard-open .term-accessory { padding-bottom: 8px; }
 
 /* Floating exit button — only shown in fullscreen. */
 .term-exit-fullscreen { display: none; }
@@ -385,4 +474,10 @@ button.danger:hover { background: var(--danger-weak); }
   /* Buttons get comfortable touch targets on small screens. */
   button { padding: 11px 16px; }
   .list-item { padding: 16px; }
+  /* Terminal toolbar stays compact and wraps instead of overflowing; the
+     spacer is dropped so the controls pack tightly across the row. */
+  .terminal-screen .toolbar { flex-wrap: wrap; gap: 6px; }
+  .terminal-screen .toolbar .grow { display: none; }
+  .terminal-screen .toolbar button { padding: 6px 9px; font-size: 0.8rem; }
+  .terminal-screen .toolbar h1 { font-size: 0.9rem; }
 }

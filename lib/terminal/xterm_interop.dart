@@ -35,6 +35,9 @@ extension type XTerminal._(JSObject _) implements JSObject {
   /// Clears any active selection.
   external void clearSelection();
 
+  /// Scrolls the viewport to the bottom (the latest output / prompt).
+  external void scrollToBottom();
+
   /// Disposes the terminal.
   external void dispose();
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:js_interop';
 
 import 'package:omnyshell/omnyshell_client_web.dart'
     show
@@ -60,6 +61,11 @@ class SessionViewScreen implements Screen {
   bool _finished = false;
   bool _fullscreen = false;
   void Function()? _detachResize;
+  void Function()? _detachOrientation;
+  void Function()? _detachViewport;
+  web.ResizeObserver? _resizeObserver;
+  bool _fitScheduled = false;
+  Timer? _settleTimer;
 
   /// Builds the screen. Production callers omit the injected hooks.
   SessionViewScreen(
@@ -104,10 +110,6 @@ class SessionViewScreen implements Screen {
                 '/nodes/${Uri.encodeComponent(nodeId)}/sessions',
               ),
             ),
-            el(
-              'h1',
-              text: sessionRef == 'new' ? 'New shell' : 'Session $sessionRef',
-            ),
             el('div', classes: 'grow'),
             _status,
             _fsToggle,
@@ -128,6 +130,9 @@ class SessionViewScreen implements Screen {
     );
 
     _status.appendChild(loadingRow('Connecting…'));
+    // Lock the page to the viewport so only the terminal content scrolls (no
+    // body/rubber-band scroll); removed again on dispose.
+    web.document.documentElement?.classList.add('terminal-active');
     // Defer until mounted so the host has layout for the terminal fit.
     scheduleMicrotask(_start);
   }
@@ -219,7 +224,34 @@ class SessionViewScreen implements Screen {
         ).element,
       );
       term.focus();
-      _detachResize = on(web.window, 'resize', (_) => _fit());
+      _detachResize = on(web.window, 'resize', (_) => _scheduleFit());
+      // The soft keyboard resizes the *visual* viewport (not window), so refit
+      // on its changes too. boot.js does the CSS layout binding.
+      final vv = web.window.visualViewport;
+      if (vv != null) {
+        _detachViewport = on(vv, 'resize', (_) => _scheduleSettle());
+      }
+      // The robust trigger: refit whenever the terminal host actually changes
+      // size (fullscreen toggle, keyboard, rotation, …). A ResizeObserver fires
+      // *after* layout, so xterm measures the settled box — unlike the ad-hoc
+      // fits that ran before the new layout applied on fullscreen exit.
+      final ro = web.ResizeObserver(
+        (
+              JSArray<web.ResizeObserverEntry> entries,
+              web.ResizeObserver observer,
+            ) {
+              _scheduleFit();
+            }
+            .toJS,
+      );
+      ro.observe(_host);
+      _resizeObserver = ro;
+      // A rotation in fullscreen leaves the terminal mis-sized and awkward, so
+      // drop back to the normal layout when the orientation actually flips.
+      final orientation = web.window.matchMedia('(orientation: portrait)');
+      _detachOrientation = on(orientation, 'change', (_) {
+        if (_fullscreen) _setFullscreen(false);
+      });
     } on Object catch (e) {
       term.dispose();
       _term = null;
@@ -230,8 +262,66 @@ class SessionViewScreen implements Screen {
   /// Refits the xterm terminal to its container (after a window resize or a
   /// fullscreen toggle changes the available geometry).
   void _fit() {
+    _applyMinHeight();
     final t = _term;
     if (t is XtermTerminalView) t.fit();
+  }
+
+  /// Floors the terminal height at the space available between everything above
+  /// it (header, toolbar, paddings, gaps) and the key bar reserved below it, so
+  /// it uses the full area while never overlapping the key bar.
+  ///
+  /// Skipped in fullscreen (the fixed container already fills the screen) and
+  /// while the keyboard is open (the terminal must be free to shrink into the
+  /// space above the keyboard, with no minimum forcing overlap).
+  void _applyMinHeight() {
+    final kbOpen =
+        web.document.documentElement?.classList.contains('keyboard-open') ??
+        false;
+    if (_fullscreen || kbOpen) {
+      _host.style.removeProperty('min-height');
+      return;
+    }
+    // Measure the natural layout first (clear any prior floor so the rects are
+    // not skewed by it). The host's top offset captures all chrome above it; the
+    // key-bar box (plus the gap to it) is what must be reserved below.
+    _host.style.removeProperty('min-height');
+    final viewport =
+        web.window.visualViewport?.height ?? web.window.innerHeight.toDouble();
+    final hostRect = _host.getBoundingClientRect();
+    final barRect = _accessory.getBoundingClientRect();
+    final gapBelow = barRect.top - hostRect.bottom;
+    final reserveBelow = barRect.height + (gapBelow > 0 ? gapBelow : 0);
+    final available = viewport - hostRect.top - reserveBelow;
+    if (available > 0) {
+      _host.style.minHeight = '${available.round()}px';
+    }
+  }
+
+  /// Coalesces refit requests to once per frame and runs the fit in a
+  /// `requestAnimationFrame` callback — after style/layout for any pending
+  /// change (class toggle, keyboard inset, …) has been computed, so xterm
+  /// measures the settled box rather than the previous one.
+  void _scheduleFit() {
+    if (_fitScheduled) return;
+    _fitScheduled = true;
+    web.window.requestAnimationFrame(
+      (double _) {
+        _fitScheduled = false;
+        _fit();
+      }.toJS,
+    );
+  }
+
+  /// Refits now (next frame) and once more after the viewport stops changing.
+  /// The keyboard open/close animates the visual viewport over many events; the
+  /// trailing timer (reset on each call) fires only after it settles, so the
+  /// final fit measures the correct height (e.g. restoring it when the keyboard
+  /// closes in normal mode).
+  void _scheduleSettle() {
+    _scheduleFit();
+    _settleTimer?.cancel();
+    _settleTimer = Timer(const Duration(milliseconds: 200), _fit);
   }
 
   void _toggleFullscreen() => _setFullscreen(!_fullscreen);
@@ -247,10 +337,30 @@ class SessionViewScreen implements Screen {
       'aria-label',
       on ? 'Exit fullscreen' : 'Enter fullscreen',
     );
-    // The container size changed; reflow xterm now and once more after layout
-    // settles (mirrors the double-fit in XtermTerminalView's constructor).
-    scheduleMicrotask(_fit);
-    Timer(const Duration(milliseconds: 80), _fit);
+    _settleAfterToggle();
+  }
+
+  /// Re-fits the terminal and pins it to the bottom (latest output / prompt)
+  /// after a fullscreen toggle.
+  ///
+  /// On mobile, toggling fullscreen also animates the browser chrome (URL/tool
+  /// bars) in or out, and the viewport keeps changing size for a few hundred ms
+  /// after the class flips. A single immediate fit would measure the pre-
+  /// animation box and leave the terminal/key bar mis-sized, so we force a
+  /// recompute now (next frame) and again after the chrome has settled.
+  void _settleAfterToggle() {
+    void apply() {
+      _fit();
+      _term?.scrollToBottom();
+    }
+
+    // Nudge a layout recompute, then refit on the next frame.
+    _scheduleFit();
+    web.window.requestAnimationFrame(((double _) => apply()).toJS);
+    // Catch the post-animation viewport size (mobile chrome show/hide).
+    for (final ms in const [120, 300, 500]) {
+      Timer(Duration(milliseconds: ms), apply);
+    }
   }
 
   void _showError(AppError error) {
@@ -306,7 +416,12 @@ class SessionViewScreen implements Screen {
   @override
   void dispose() {
     _detachResize?.call();
-    // Don't leak fullscreen state onto the rest of the app when navigating away.
+    _detachOrientation?.call();
+    _detachViewport?.call();
+    _resizeObserver?.disconnect();
+    _settleTimer?.cancel();
+    // Release the page scroll lock and any fullscreen state on the way out.
+    web.document.documentElement?.classList.remove('terminal-active');
     if (_fullscreen) {
       web.document.documentElement?.classList.remove('term-fullscreen');
     }

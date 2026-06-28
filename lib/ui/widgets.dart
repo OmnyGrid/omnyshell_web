@@ -55,6 +55,7 @@ web.HTMLInputElement input({
   String? value,
   String? placeholder,
   String? autocomplete,
+  String? autocapitalize,
   void Function()? onEnter,
 }) {
   final e = el('input', id: id) as web.HTMLInputElement;
@@ -62,6 +63,14 @@ web.HTMLInputElement input({
   if (value != null) e.value = value;
   if (placeholder != null) e.placeholder = placeholder;
   if (autocomplete != null) e.autocomplete = autocomplete;
+  // Opt out of mobile auto-capitalization / -correction for case-sensitive
+  // identifiers (host, principal) so the keyboard doesn't capitalize the first
+  // letter or "correct" the value.
+  if (autocapitalize != null) {
+    e.autocapitalize = autocapitalize;
+    e.setAttribute('autocorrect', 'off');
+    e.spellcheck = false;
+  }
   if (onEnter != null) {
     e.addEventListener(
       'keydown',
