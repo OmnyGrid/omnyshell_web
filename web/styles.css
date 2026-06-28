@@ -309,9 +309,14 @@ button.danger:hover { background: var(--danger-weak); }
    content scrolls — no body/page scroll or mobile rubber-banding. The terminal
    card flexes to fill the space below the toolbar, and xterm's viewport handles
    scrollback. Scoped to `.terminal-active` so other screens scroll normally. */
-html.terminal-active,
+html.terminal-active { height: 100%; overflow: hidden; overscroll-behavior: none; }
+/* Anchor the app to the *visible* viewport, not the layout viewport: on iOS
+   `height: 100%` is the layout viewport, which is taller than the visible area
+   (Safari's bottom toolbar), so the key bar/last row would fall below the edge
+   with no scroll to reach them. --vvh (visualViewport) is exact; 100dvh is the
+   CSS fallback that already accounts for the dynamic toolbars. */
 html.terminal-active body {
-  height: 100%;
+  height: var(--vvh, 100dvh);
   overflow: hidden;
   overscroll-behavior: none;
 }

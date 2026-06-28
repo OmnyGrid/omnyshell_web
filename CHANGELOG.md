@@ -19,6 +19,10 @@
 - The terminal now refits reliably on fullscreen enter/exit (and keyboard /
   rotation / resize) via a `ResizeObserver`, instead of mis-sizing until the
   keyboard was toggled.
+- After exiting fullscreen the terminal no longer overflows the screen on iOS:
+  the locked terminal screen is anchored to the visible viewport
+  (`--vvh`/`100dvh`) rather than the (taller) layout viewport, so the bottom row
+  and key bar stay on-screen.
 - The login Hub and Principal fields opt out of mobile auto-capitalization and
   auto-correction (`autocapitalize=none`, `autocorrect=off`, `spellcheck=false`)
   so the keyboard no longer capitalizes the first letter.
