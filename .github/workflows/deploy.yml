@@ -1,0 +1,72 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+# Allow the workflow to publish to Pages via OIDC.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push supersedes an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+      - name: Install dependencies
+        run: dart pub get
+      - name: Build (dart2js, release)
+        run: dart run build_runner build --release --output build
+
+      # The strict CSP is injected into the *built* index.html only — not the
+      # source — so `webdev serve` (DDC, which needs 'unsafe-eval') keeps working
+      # in development while the deployed dart2js build runs under a strict policy
+      # (no inline scripts, no third-party origins; xterm is self-hosted).
+      - name: Inject Content-Security-Policy
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          csp = (
+              "default-src 'self'; base-uri 'self'; object-src 'none'; "
+              "frame-ancestors 'none'; script-src 'self'; "
+              "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+              "font-src 'self'; connect-src 'self' wss:; "
+              "manifest-src 'self'; worker-src 'self'"
+          )
+          tag = '<meta http-equiv="Content-Security-Policy" content="%s">' % csp
+          p = pathlib.Path("build/web/index.html")
+          html = p.read_text()
+          assert "<head>" in html, "no <head> in built index.html"
+          assert "cdn.jsdelivr.net" not in html, "unexpected CDN reference"
+          p.write_text(html.replace("<head>", "<head>\n    " + tag, 1))
+          print("CSP injected")
+          PY
+
+      # GitHub Pages runs Jekyll by default, which drops files; disable it so the
+      # build is served byte-for-byte.
+      - name: Disable Jekyll
+        run: touch build/web/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

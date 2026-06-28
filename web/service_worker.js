@@ -1,19 +1,24 @@
 // OmnyShell PWA service worker.
 //
 // Strategy:
-//  - Precache the app shell so the app installs and launches offline.
+//  - Precache the app shell (incl. the self-hosted xterm) so the app installs
+//    and the terminal launches offline.
 //  - Same-origin GETs: network-first (fresh app code online; cache fallback
 //    offline). Navigations fall back to the cached shell.
-//  - Cross-origin GETs (e.g. the xterm.js CDN): cache-first, caching opaque
-//    responses so the terminal still loads offline after the first visit.
+//  - Cross-origin GETs: cache-first (caching opaque responses). Everything the
+//    app needs is now same-origin, so this only matters for incidental requests.
 //
 // Bump CACHE_VERSION to invalidate old caches when the shell changes.
-const CACHE_VERSION = 'omnyshell-v1';
+const CACHE_VERSION = 'omnyshell-v2';
 
 const SHELL = [
   './',
   './styles.css',
+  './boot.js',
   './manifest.json',
+  './vendor/xterm/xterm.min.css',
+  './vendor/xterm/xterm.min.js',
+  './vendor/xterm/addon-fit.min.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',

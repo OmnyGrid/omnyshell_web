@@ -60,14 +60,33 @@ void main() {
     }
   });
 
-  test('index.html wires manifest, iOS tags and the service worker', () {
+  test('index.html wires manifest, iOS tags, boot and self-hosted xterm', () {
     final html = File('web/index.html').readAsStringSync();
     expect(html, contains('rel="manifest"'));
     expect(html, contains('apple-mobile-web-app-capable'));
     expect(html, contains('apple-touch-icon'));
     expect(html, contains('name="theme-color"'));
     expect(html, contains('viewport-fit=cover'));
-    expect(html, contains("serviceWorker.register('service_worker.js')"));
+    expect(html, contains('src="boot.js"'));
+    // xterm is self-hosted (CSP-friendly): no third-party CDN references.
+    expect(html, contains('vendor/xterm/xterm.min.js'));
+    expect(html, isNot(contains('cdn.jsdelivr.net')));
+  });
+
+  test('boot.js registers the service worker and applies the theme', () {
+    final boot = File('web/boot.js').readAsStringSync();
+    expect(boot, contains("serviceWorker.register('service_worker.js')"));
+    expect(boot, contains('data-theme'));
+  });
+
+  test('self-hosted xterm assets are present', () {
+    for (final f in [
+      'vendor/xterm/xterm.min.js',
+      'vendor/xterm/xterm.min.css',
+      'vendor/xterm/addon-fit.min.js',
+    ]) {
+      expect(File('web/$f').existsSync(), isTrue, reason: f);
+    }
   });
 
   test('service worker handles install and fetch', () {
