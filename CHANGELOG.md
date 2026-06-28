@@ -18,7 +18,7 @@
 
 - The on-screen accessory key bar now places Home/End/PgUp/PgDn at the end
   (after Copy/Paste).
-- Requires `omnyshell ^1.31.0` (for the browser-safe local-command layer).
+- Bumped `omnyshell` to ^1.31.0 (for the browser-safe local-command layer).
 
 ## 1.0.0
 
