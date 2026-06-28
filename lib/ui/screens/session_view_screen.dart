@@ -61,6 +61,7 @@ class SessionViewScreen implements Screen {
   bool _fullscreen = false;
   void Function()? _detachResize;
   void Function()? _detachOrientation;
+  void Function()? _detachViewport;
 
   /// Builds the screen. Production callers omit the injected hooks.
   SessionViewScreen(
@@ -217,6 +218,13 @@ class SessionViewScreen implements Screen {
       );
       term.focus();
       _detachResize = on(web.window, 'resize', (_) => _fit());
+      // The soft keyboard resizes the *visual* viewport (not window), so refit
+      // xterm on its changes too — keeps cols/rows correct and the prompt row
+      // visible as the keyboard opens/closes. boot.js does the layout binding.
+      final vv = web.window.visualViewport;
+      if (vv != null) {
+        _detachViewport = on(vv, 'resize', (_) => _fit());
+      }
       // A rotation in fullscreen leaves the terminal mis-sized and awkward, so
       // drop back to the normal layout when the orientation actually flips.
       final orientation = web.window.matchMedia('(orientation: portrait)');
@@ -310,6 +318,7 @@ class SessionViewScreen implements Screen {
   void dispose() {
     _detachResize?.call();
     _detachOrientation?.call();
+    _detachViewport?.call();
     // Don't leak fullscreen state onto the rest of the app when navigating away.
     if (_fullscreen) {
       web.document.documentElement?.classList.remove('term-fullscreen');

@@ -16,6 +16,11 @@
 
 ### Changed
 
+- The terminal now stays usable with the mobile soft keyboard open: the layout
+  tracks the visual viewport so the on-screen key bar sits just above the
+  keyboard and the prompt row stays visible (xterm re-fits on keyboard
+  open/close). Implemented via a `visualViewport` tracker exposing `--vvh`/`--kb`
+  and a `.keyboard-open` flag.
 - Added a **New Session** button to the sessions list so a fresh shell can be
   opened without going back to the node screen.
 - Removed the redundant session title ("New shell" / "Session …") from the

@@ -309,29 +309,49 @@ button.danger:hover { background: var(--danger-weak); }
 .term-fullscreen .app-header { display: none; }
 .term-fullscreen .app-main { max-width: none; padding: 0; }
 
-.term-fullscreen .terminal-screen {
+/* Bind the terminal to the *visual* viewport — the area above the on-screen
+   keyboard — in fullscreen, and whenever the soft keyboard is open in any mode.
+   The keyboard overlays content (it doesn't shrink the layout viewport), so
+   without this the accessory key bar and the prompt sit hidden behind it. As a
+   fixed, --vvh-tall flex column [toolbar, terminal(flex:1), accessory], the key
+   bar lands just above the keyboard and the terminal (re-fit from Dart on
+   visualViewport resize) keeps its prompt row visible. --vvh is set by boot.js;
+   it falls back to the full dynamic viewport when there's no keyboard. */
+.term-fullscreen .terminal-screen,
+.keyboard-open .terminal-screen {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--vvh, 100dvh);
   z-index: 40;
   gap: 0;
   background: #0b0e12;
 }
-/* Hide the screen toolbar (Sessions / Detach / Terminate / toggle). */
+/* Hide the screen toolbar (Sessions / Detach / Terminate / toggle) in
+   fullscreen. With just the keyboard open it stays, so its controls remain
+   reachable while typing. */
 .term-fullscreen .terminal-screen > .toolbar { display: none; }
 
-.term-fullscreen .terminal-card {
+.term-fullscreen .terminal-card,
+.keyboard-open .terminal-card {
   flex: 1;
   border: 0;
   border-radius: 0;
   padding: 4px;
   padding-top: calc(4px + env(safe-area-inset-top));
 }
-.term-fullscreen .terminal-host {
+.term-fullscreen .terminal-host,
+.keyboard-open .terminal-host {
   height: 100%;
   min-height: 0;
   max-height: none;
 }
-.term-fullscreen .term-accessory { border-radius: 0; }
+.term-fullscreen .term-accessory,
+.keyboard-open .term-accessory { border-radius: 0; }
+/* The keyboard already covers the home-indicator inset, so drop the extra
+   bottom padding that would otherwise lift the key bar away from it. */
+.keyboard-open .term-accessory { padding-bottom: 8px; }
 
 /* Floating exit button — only shown in fullscreen. */
 .term-exit-fullscreen { display: none; }

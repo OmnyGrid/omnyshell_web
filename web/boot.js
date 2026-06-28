@@ -40,3 +40,32 @@
     });
   }
 })();
+
+// Track the visual viewport so the terminal UI can sit above the on-screen
+// keyboard. The soft keyboard overlays content rather than resizing the layout
+// viewport, so we expose the visible height (--vvh) and keyboard inset (--kb)
+// as CSS custom properties and flag `.keyboard-open` once the keyboard is up.
+// (styles.css binds the terminal screen to --vvh; the Dart side re-fits xterm
+// on the same visualViewport resize.)
+(function () {
+  var vv = window.visualViewport;
+  if (!vv) return;
+  var root = document.documentElement;
+  var queued = 0;
+  function apply() {
+    queued = 0;
+    var visible = vv.height;
+    var keyboard = Math.max(0, window.innerHeight - visible - vv.offsetTop);
+    root.style.setProperty('--vvh', visible + 'px');
+    root.style.setProperty('--kb', keyboard + 'px');
+    // A small threshold avoids flagging an accessory/suggestion bar as the
+    // keyboard; a hardware keyboard reports ~0 and stays "closed".
+    root.classList.toggle('keyboard-open', keyboard > 80);
+  }
+  function onChange() {
+    if (!queued) queued = requestAnimationFrame(apply);
+  }
+  vv.addEventListener('resize', onChange);
+  vv.addEventListener('scroll', onChange);
+  apply();
+})();
