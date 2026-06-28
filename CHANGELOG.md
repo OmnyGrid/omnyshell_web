@@ -1,3 +1,9 @@
+## 1.2.1
+
+### Changed
+
+- Maintenance release to exercise the release-triggered GitHub Pages deploy.
+
 ## 1.2.0
 
 ### Added
