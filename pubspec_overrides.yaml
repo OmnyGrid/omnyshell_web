@@ -1,5 +1,0 @@
-# Local dev override: build against the workspace omnyshell until 1.32.0 (which
-# exports omnyShellVersion from the web barrel) is published. Remove afterwards.
-dependency_overrides:
-  omnyshell:
-    path: ../omnyshell
