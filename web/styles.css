@@ -205,6 +205,7 @@ button.danger:hover { background: var(--danger-weak); }
 .banner .hint { color: var(--fg-muted); font-size: 0.85rem; margin-top: 2px; }
 
 .muted { color: var(--fg-muted); }
+.version-footer { text-align: center; margin: 4px 0 0; opacity: 0.8; }
 .empty {
   text-align: center; color: var(--fg-muted);
   padding: 48px 16px;

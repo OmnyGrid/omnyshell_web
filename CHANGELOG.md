@@ -1,3 +1,10 @@
+## 1.2.0
+
+### Added
+
+- The login screen footer shows the Web Client version and the OmnyShell version
+  (read from the package's `omnyShellVersion`, requires `omnyshell` ^1.32.0).
+
 ## 1.1.0
 
 ### Added
