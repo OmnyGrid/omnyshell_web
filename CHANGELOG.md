@@ -20,6 +20,11 @@
   (after Copy/Paste).
 - Disabled pinch-to-zoom on mobile (viewport meta + `touch-action` + iOS gesture
   handlers) so two-finger gestures don't zoom the page; panning/scrolling stays.
+- The terminal toolbar (Sessions / Fullscreen / Detach / Terminate) uses
+  smaller buttons and wraps instead of overflowing, so the row fits a phone
+  width.
+- Rotating the device while in fullscreen now exits fullscreen, since the
+  layout isn't usable across an orientation change.
 - Bumped `omnyshell` to ^1.31.0 (for the browser-safe local-command layer).
 
 ## 1.0.0
