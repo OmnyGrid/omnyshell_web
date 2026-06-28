@@ -337,6 +337,11 @@ html.terminal-active:not(.term-fullscreen):not(.keyboard-open) .terminal-screen 
 }
 html.terminal-active .terminal-card { flex: 1; min-height: 0; }
 html.terminal-active .terminal-host { height: 100%; min-height: 0; max-height: none; }
+/* Give the terminal a usable minimum height — but only with the keyboard
+   closed, so an open keyboard can still shrink it to fit in the space above the
+   keyboard (no overlap). */
+html.terminal-active:not(.keyboard-open) .terminal-card,
+html.terminal-active:not(.keyboard-open) .terminal-host { min-height: 240px; }
 /* Keep scroll chaining inside the terminal even at the scrollback ends. */
 .terminal-host .xterm-viewport { overscroll-behavior: contain; }
 
