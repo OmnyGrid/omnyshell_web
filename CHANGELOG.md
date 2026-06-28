@@ -18,6 +18,11 @@
 
 - The on-screen accessory key bar now places Home/End/PgUp/PgDn at the end
   (after Copy/Paste).
+- The terminal toolbar (Sessions / Fullscreen / Detach / Terminate) uses
+  smaller buttons and wraps instead of overflowing, so the row fits a phone
+  width.
+- Rotating the device while in fullscreen now exits fullscreen, since the
+  layout isn't usable across an orientation change.
 - Bumped `omnyshell` to ^1.31.0 (for the browser-safe local-command layer).
 
 ## 1.0.0

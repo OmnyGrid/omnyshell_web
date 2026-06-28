@@ -60,6 +60,7 @@ class SessionViewScreen implements Screen {
   bool _finished = false;
   bool _fullscreen = false;
   void Function()? _detachResize;
+  void Function()? _detachOrientation;
 
   /// Builds the screen. Production callers omit the injected hooks.
   SessionViewScreen(
@@ -220,6 +221,12 @@ class SessionViewScreen implements Screen {
       );
       term.focus();
       _detachResize = on(web.window, 'resize', (_) => _fit());
+      // A rotation in fullscreen leaves the terminal mis-sized and awkward, so
+      // drop back to the normal layout when the orientation actually flips.
+      final orientation = web.window.matchMedia('(orientation: portrait)');
+      _detachOrientation = on(orientation, 'change', (_) {
+        if (_fullscreen) _setFullscreen(false);
+      });
     } on Object catch (e) {
       term.dispose();
       _term = null;
@@ -306,6 +313,7 @@ class SessionViewScreen implements Screen {
   @override
   void dispose() {
     _detachResize?.call();
+    _detachOrientation?.call();
     // Don't leak fullscreen state onto the rest of the app when navigating away.
     if (_fullscreen) {
       web.document.documentElement?.classList.remove('term-fullscreen');
