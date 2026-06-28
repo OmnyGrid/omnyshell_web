@@ -1,6 +1,12 @@
 import 'dart:async';
 
-import 'package:omnyshell/omnyshell_client_web.dart' show ShellSessionPort;
+import 'package:omnyshell/omnyshell_client_web.dart'
+    show
+        LocalCommandRegistry,
+        NodeDescriptor,
+        RemoteSession,
+        ShellDialect,
+        ShellSessionPort;
 import 'package:web/web.dart' as web;
 
 import '../../app/app_context.dart';
@@ -47,9 +53,12 @@ class SessionViewScreen implements Screen {
   late final web.HTMLElement _host;
   late final web.HTMLElement _status;
   late final web.HTMLElement _accessory;
+  late final web.HTMLButtonElement _fsToggle;
   TerminalView? _term;
   WebShellHost? _shell;
+  NodeDescriptor? _node;
   bool _finished = false;
+  bool _fullscreen = false;
   void Function()? _detachResize;
 
   /// Builds the screen. Production callers omit the injected hooks.
@@ -73,6 +82,12 @@ class SessionViewScreen implements Screen {
     );
     _status = div(classes: 'row');
     _accessory = div();
+    _fsToggle = button(
+      '⤢ Fullscreen',
+      className: 'ghost',
+      ariaLabel: 'Enter fullscreen',
+      onClick: _toggleFullscreen,
+    );
 
     element = el(
       'div',
@@ -95,12 +110,20 @@ class SessionViewScreen implements Screen {
             ),
             el('div', classes: 'grow'),
             _status,
+            _fsToggle,
             button('Detach', onClick: _detach),
             button('Terminate', className: 'danger', onClick: _terminate),
           ],
         ),
         el('div', classes: 'card terminal-card', children: [_host]),
         _accessory,
+        // Floating exit button, hidden by CSS unless fullscreen is active.
+        button(
+          '⤡',
+          className: 'icon ghost term-exit-fullscreen',
+          ariaLabel: 'Exit fullscreen',
+          onClick: _toggleFullscreen,
+        ),
       ],
     );
 
@@ -138,11 +161,50 @@ class SessionViewScreen implements Screen {
 
     try {
       final session = await opener(cols, rows);
+      // Load the node descriptor in the background so local `:` commands
+      // (`:info`, `:tree`, `:tunnel`, …) have node metadata; best-effort.
+      unawaited(_loadNode());
+      final client = ctx.service.client;
+      final dialect = ShellDialect.forFamily(session.shellFamily);
       final shell = _shell = WebShellHost(
         term: term,
         session: session,
         principal: ctx.service.principal?.id.value ?? 'user',
         nodeId: nodeId,
+        commands: LocalCommandRegistry.withDefaults(),
+        client: client,
+        // TAB completion: run the shell's completion command on the node in the
+        // session's cwd, mirroring the CLI's connect loop.
+        onComplete: (word, isCommand, cwd) async {
+          try {
+            final res = await client
+                .execute(
+                  nodeId: nodeId,
+                  command: dialect.completionCommand(
+                    word,
+                    isCommand: isCommand,
+                  ),
+                  cwd: cwd,
+                  shellFamily: session.shellFamily,
+                )
+                .timeout(const Duration(seconds: 4));
+            final candidates = res.stdoutText
+                .split('\n')
+                .map((s) => s.trimRight())
+                .where((s) => s.isNotEmpty)
+                .toList();
+            return candidates.length > 200
+                ? candidates.sublist(0, 200)
+                : candidates;
+          } on Object {
+            return const <String>[]; // completion is best-effort
+          }
+        },
+        nodeInfo: () => _node,
+        principalInfo: ctx.service.principal,
+        remoteSession: session is RemoteSession ? session : null,
+        onSessionExit: () => _leaveAfterLocalCommand(detached: false),
+        onSessionDetached: () => _leaveAfterLocalCommand(detached: true),
       );
       clearChildren(_status);
       // Mount the on-screen accessory key bar (Esc/Tab/Ctrl/arrows/…, copy/paste).
@@ -157,14 +219,38 @@ class SessionViewScreen implements Screen {
         ).element,
       );
       term.focus();
-      _detachResize = on(web.window, 'resize', (_) {
-        if (_term is XtermTerminalView) (_term! as XtermTerminalView).fit();
-      });
+      _detachResize = on(web.window, 'resize', (_) => _fit());
     } on Object catch (e) {
       term.dispose();
       _term = null;
       _showError(AppError.from(e));
     }
+  }
+
+  /// Refits the xterm terminal to its container (after a window resize or a
+  /// fullscreen toggle changes the available geometry).
+  void _fit() {
+    final t = _term;
+    if (t is XtermTerminalView) t.fit();
+  }
+
+  void _toggleFullscreen() => _setFullscreen(!_fullscreen);
+
+  /// Expands the terminal to fill the whole window (hiding the app header and
+  /// toolbar), or restores the normal layout. Driven by the `term-fullscreen`
+  /// class on the root element so CSS can reach chrome outside this screen.
+  void _setFullscreen(bool on) {
+    _fullscreen = on;
+    web.document.documentElement?.classList.toggle('term-fullscreen', on);
+    _fsToggle.textContent = on ? '⤡ Exit' : '⤢ Fullscreen';
+    _fsToggle.setAttribute(
+      'aria-label',
+      on ? 'Exit fullscreen' : 'Enter fullscreen',
+    );
+    // The container size changed; reflow xterm now and once more after layout
+    // settles (mirrors the double-fit in XtermTerminalView's constructor).
+    scheduleMicrotask(_fit);
+    Timer(const Duration(milliseconds: 80), _fit);
   }
 
   void _showError(AppError error) {
@@ -189,9 +275,41 @@ class SessionViewScreen implements Screen {
     ctx.router.go('/nodes/${Uri.encodeComponent(nodeId)}/sessions');
   }
 
+  /// Fetches the node descriptor (best-effort) so local commands have metadata.
+  Future<void> _loadNode() async {
+    try {
+      final nodes = await ctx.service.listNodes();
+      for (final n in nodes) {
+        if (n.id.value == nodeId) {
+          _node = n;
+          break;
+        }
+      }
+    } on Object {
+      // Local commands needing node metadata will report it as unavailable.
+    }
+  }
+
+  /// Navigates back to the sessions list after a local `:exit`/`:detach` command
+  /// already closed or parked the session (so we don't act on it again).
+  void _leaveAfterLocalCommand({required bool detached}) {
+    if (_finished) return;
+    _finished = true;
+    ctx.toasts.success(
+      detached
+          ? 'Session detached — resume it from the list.'
+          : 'Session terminated.',
+    );
+    ctx.router.go('/nodes/${Uri.encodeComponent(nodeId)}/sessions');
+  }
+
   @override
   void dispose() {
     _detachResize?.call();
+    // Don't leak fullscreen state onto the rest of the app when navigating away.
+    if (_fullscreen) {
+      web.document.documentElement?.classList.remove('term-fullscreen');
+    }
     // Navigating away from a live session detaches it so it stays resumable.
     if (!_finished && _shell != null && !_shell!.ended) {
       _finished = true;

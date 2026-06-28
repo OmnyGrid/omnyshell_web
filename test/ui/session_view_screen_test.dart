@@ -94,6 +94,44 @@ void main() {
     h.dispose();
   });
 
+  test('fullscreen toggle flips the root class and dispose clears it', () async {
+    final h = await connected();
+    final io = FakeShellSessionPort();
+    final screen = SessionViewScreen(
+      h.ctx,
+      'web-01',
+      'new',
+      terminalFactory: (_) => FakeTerminalView(),
+      opener: (cols, rows) async => io,
+    );
+    mount(h.container, screen.element);
+    await pump();
+
+    final root = web.document.documentElement!;
+    expect(root.classList.contains('term-fullscreen'), isFalse);
+
+    // Enter fullscreen.
+    buttonWithText(h.container, '⤢ Fullscreen')!.click();
+    await pump();
+    expect(root.classList.contains('term-fullscreen'), isTrue);
+    expect(buttonWithText(h.container, '⤡ Exit'), isNotNull);
+
+    // Exit via the floating button (glyph ⤡, distinct from the toolbar toggle).
+    (h.container.querySelector('.term-exit-fullscreen') as web.HTMLElement)
+        .click();
+    await pump();
+    expect(root.classList.contains('term-fullscreen'), isFalse);
+
+    // Re-enter, then dispose: the class must not leak onto the rest of the app.
+    buttonWithText(h.container, '⤢ Fullscreen')!.click();
+    await pump();
+    expect(root.classList.contains('term-fullscreen'), isTrue);
+    screen.dispose();
+    expect(root.classList.contains('term-fullscreen'), isFalse);
+
+    h.dispose();
+  });
+
   test('a failed open shows an error banner', () async {
     final h = await connected();
     final screen = SessionViewScreen(

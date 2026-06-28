@@ -1,3 +1,25 @@
+## Unreleased
+
+### Added
+
+- Fullscreen toggle for the terminal: a button expands the terminal to fill the
+  whole window (hiding the app header and toolbar) so mobile devices get the
+  maximum screen area, with a floating exit button to restore the normal layout.
+- TAB completion in the terminal — pressing Tab now completes the word under the
+  cursor by running the shell's completion command on the node (the same
+  mechanism the CLI uses), instead of being dropped.
+- Local `:` commands now work in the web terminal (`:help`, `:tree`, `:tunnel`,
+  `:info`, `:whoami`, `:ping`, `:detach`, `:exit`, …). They are handled
+  client-side via the shared `omnyshell` registry and never forwarded to the
+  remote shell. Filesystem commands (`:download`/`:upload`/`:drive`) are
+  intentionally unavailable in the browser.
+
+### Changed
+
+- The on-screen accessory key bar now places Home/End/PgUp/PgDn at the end
+  (after Copy/Paste).
+- Bumped `omnyshell` to ^1.31.0 (for the browser-safe local-command layer).
+
 ## 1.0.0
 
 - Initial release of the OmnyShell web client.
