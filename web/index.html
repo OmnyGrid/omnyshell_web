@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <meta name="description" content="OmnyShell web client — connect to a Hub, discover nodes, and manage sessions from the browser.">
+    <title>OmnyShell</title>
+
+    <!-- Progressive Web App -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" id="theme-color" content="#0f1318">
+    <meta name="mobile-web-app-capable" content="yes">
+    <!-- iOS standalone / home-screen support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="OmnyShell">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+
+    <link rel="stylesheet" href="styles.css">
+    <!-- xterm.js for the interactive terminal (M4). UMD bundles expose the
+         globals `Terminal` and `FitAddon`. -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+    <!-- Apply the saved theme before first paint to avoid a flash of the wrong palette. -->
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem('omnyshell.theme') || 'system';
+          var dark = pref === 'dark' ||
+            (pref === 'system' &&
+             window.matchMedia &&
+             window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var theme = dark ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', theme);
+          var meta = document.getElementById('theme-color');
+          if (meta) meta.setAttribute('content', dark ? '#0f1318' : '#f6f7f9');
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
+    <script defer src="main.dart.js"></script>
+</head>
+<body>
+    <div id="app" aria-busy="true">
+        <div class="center-host"><span class="spinner" role="status" aria-label="Loading"></span></div>
+    </div>
+    <div id="toasts" aria-live="polite" aria-atomic="false"></div>
+    <!-- Register the service worker for installability + offline app shell. -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('service_worker.js').catch(function (e) {
+            console.warn('Service worker registration failed:', e);
+          });
+        });
+      }
+    </script>
+</body>
+</html>

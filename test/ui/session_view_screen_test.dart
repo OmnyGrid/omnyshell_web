@@ -1,0 +1,115 @@
+@TestOn('browser')
+library;
+
+import 'package:omnyshell/omnyshell_client_web.dart';
+import 'package:omnyshell_web/ui/dom.dart';
+import 'package:omnyshell_web/ui/screens/session_view_screen.dart';
+import 'package:test/test.dart';
+import 'package:web/web.dart' as web;
+
+import '../support/dom_harness.dart';
+import '../support/fake_hub.dart';
+import '../support/fake_terminal.dart';
+
+void main() {
+  setUp(() => web.window.location.hash = '');
+
+  Future<void> pump([int ms = 20]) =>
+      Future<void>.delayed(Duration(milliseconds: ms));
+
+  Future<DomHarness> connected() async {
+    final h = DomHarness(hub: FakeHub(validToken: 'good'));
+    await h.ctx.auth.login(
+      hub: 'h',
+      principal: 'alice',
+      token: 'good',
+      remember: false,
+    );
+    return h;
+  }
+
+  web.HTMLElement? buttonWithText(web.Element root, String text) {
+    final list = root.querySelectorAll('button');
+    for (var i = 0; i < list.length; i++) {
+      final b = list.item(i) as web.HTMLElement;
+      if (b.textContent == text) return b;
+    }
+    return null;
+  }
+
+  test('connects and wires terminal output and input', () async {
+    final h = await connected();
+    final term = FakeTerminalView(cols: 90, rows: 30);
+    final io = FakeSessionIo();
+    final screen = SessionViewScreen(
+      h.ctx,
+      'web-01',
+      'new',
+      terminalFactory: (_) => term,
+      opener: (cols, rows) async => io,
+    );
+    mount(h.container, screen.element);
+    await pump();
+
+    // Connected: status cleared, terminal focused, initial size primed.
+    expect(term.focused, isTrue);
+    expect(io.resizes, contains((90, 30)));
+
+    // Remote output reaches the terminal.
+    io.emit([104, 105]);
+    await pump();
+    expect(term.writes.single, [104, 105]);
+
+    // Keystrokes reach the session.
+    term.emitInput('x');
+    expect(io.stdin, isNotEmpty);
+
+    screen.dispose();
+    h.dispose();
+  });
+
+  test('detach navigates back to the sessions list', () async {
+    final h = await connected();
+    h.ctx.router.start();
+    final io = FakeSessionIo();
+    final screen = SessionViewScreen(
+      h.ctx,
+      'web-01',
+      'abcd',
+      terminalFactory: (_) => FakeTerminalView(),
+      opener: (cols, rows) async => io,
+    );
+    mount(h.container, screen.element);
+    await pump();
+
+    buttonWithText(h.container, 'Detach')!.click();
+    await pump();
+
+    expect(io.detached, isTrue);
+    expect(h.ctx.router.current.value.pattern, '/nodes/:id/sessions');
+
+    h.ctx.router.stop();
+    screen.dispose();
+    h.dispose();
+  });
+
+  test('a failed open shows an error banner', () async {
+    final h = await connected();
+    final screen = SessionViewScreen(
+      h.ctx,
+      'web-01',
+      'new',
+      terminalFactory: (_) => FakeTerminalView(),
+      opener: (cols, rows) async =>
+          throw const AuthorizationException('not allowed'),
+    );
+    mount(h.container, screen.element);
+    await pump();
+
+    expect(h.container.querySelector('.banner.error'), isNotNull);
+    expect(h.container.textContent, contains('Not authorized'));
+
+    screen.dispose();
+    h.dispose();
+  });
+}
