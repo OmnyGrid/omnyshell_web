@@ -1,0 +1,6 @@
+# Local development override: build against the workspace copy of omnyshell so
+# changes here are picked up without a pub publish. Remove once omnyshell 1.31.0
+# is published to pub.dev.
+dependency_overrides:
+  omnyshell:
+    path: ../omnyshell

@@ -3,7 +3,16 @@ library;
 
 import 'dart:convert';
 
-import 'package:omnyshell/omnyshell_client_web.dart' show SessionId;
+import 'package:omnyshell/omnyshell_client_web.dart'
+    show
+        ClientConfig,
+        ClientRuntime,
+        LocalCommandRegistry,
+        NodeDescriptor,
+        NodeId,
+        PlatformInfo,
+        SessionId,
+        TokenCredentialProvider;
 import 'package:omnyshell_web/terminal/web_shell_host.dart';
 import 'package:test/test.dart';
 
@@ -118,5 +127,140 @@ void main() {
     await pump();
     expect(host.ended, isTrue);
     expect(term.texts.join(), contains('session ended'));
+  });
+
+  group('local commands and Tab completion', () {
+    Future<void> pumpMs([int ms = 5]) =>
+        Future<void>.delayed(Duration(milliseconds: ms));
+
+    // A disconnected client; the commands exercised here never reach the wire.
+    ClientRuntime client() => ClientRuntime(
+      ClientConfig(
+        hubUri: Uri.parse('wss://localhost:1/'),
+        credentials: const TokenCredentialProvider(
+          principal: 'tester',
+          token: 'tok',
+        ),
+      ),
+    );
+
+    NodeDescriptor node() => NodeDescriptor(
+      id: NodeId('web-01'),
+      displayName: 'web-01',
+      platform: const PlatformInfo(
+        os: 'linux',
+        arch: 'x64',
+        agentVersion: '1.0.0',
+        hostname: 'host',
+      ),
+      online: true,
+    );
+
+    WebShellHost buildWired({
+      Future<List<String>> Function(String, bool, String?)? onComplete,
+    }) => WebShellHost(
+      term: term,
+      session: port,
+      principal: 'alice',
+      nodeId: 'web-01',
+      commands: LocalCommandRegistry.withDefaults(),
+      client: client(),
+      onComplete: onComplete,
+      nodeInfo: node,
+    );
+
+    test(':help runs locally and is not forwarded to the shell', () async {
+      buildWired();
+      port.stdin.clear();
+
+      term.emitInput(':help\r');
+      await pumpMs();
+
+      final out = shown();
+      expect(out, contains('Local commands:'));
+      expect(out, contains(':tree'));
+      expect(out, contains(':tunnel'));
+      // The download/upload/drive commands need dart:io and are excluded.
+      expect(out, isNot(contains(':drive')));
+      // Nothing was forwarded to the remote shell.
+      expect(sent(), isEmpty);
+    });
+
+    test('an unknown :command reports an error, not forwarded', () async {
+      buildWired();
+      port.stdin.clear();
+
+      term.emitInput(':bogus\r');
+      await pumpMs();
+
+      expect(shown(), contains('Unknown command: :bogus'));
+      expect(sent(), isEmpty);
+    });
+
+    test('Tab completes a unique candidate and forwards on commit', () async {
+      buildWired(
+        onComplete: (word, isCommand, cwd) async => const ['README.md'],
+      );
+      port.emit(utf8.encode(markerLine('/home/alice')));
+      await pump();
+      port.stdin.clear();
+
+      term.emitInput('RE');
+      term.emitInput('\t');
+      await pumpMs();
+      expect(shown(), contains('README.md'));
+
+      term.emitInput('\r');
+      expect(sent(), contains('README.md'));
+    });
+
+    test(
+      'Tab passes the word, command position and cwd to the completer',
+      () async {
+        String? seenWord;
+        bool? seenIsCommand;
+        String? seenCwd;
+        buildWired(
+          onComplete: (word, isCommand, cwd) async {
+            seenWord = word;
+            seenIsCommand = isCommand;
+            seenCwd = cwd;
+            return const [];
+          },
+        );
+        port.emit(utf8.encode(markerLine('/var/log')));
+        await pump();
+
+        term.emitInput('cat access');
+        term.emitInput('\t');
+        await pumpMs();
+
+        expect(seenWord, 'access');
+        expect(seenIsCommand, isFalse); // a word after "cat " is an argument
+        expect(seenCwd, '/var/log');
+      },
+    );
+
+    test('Tab lists multiple candidates with no common prefix', () async {
+      buildWired(
+        onComplete: (word, isCommand, cwd) async => const ['alpha', 'beta'],
+      );
+      term.emitInput('\t');
+      await pumpMs();
+
+      final out = shown();
+      expect(out, contains('alpha'));
+      expect(out, contains('beta'));
+    });
+
+    test('Tab is ignored (not forwarded) when no completer is wired', () async {
+      build(); // no commands/client/onComplete
+      port.stdin.clear();
+
+      term.emitInput('\t');
+      await pumpMs();
+
+      expect(sent().contains('\t'), isFalse);
+    });
   });
 }
