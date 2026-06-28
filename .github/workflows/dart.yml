@@ -1,0 +1,77 @@
+name: Dart CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+      - name: Dart version
+        run: |
+          dart --version
+          uname -a
+      - name: Install dependencies
+        run: dart pub get
+      - name: dart format
+        run: dart format -o none --set-exit-if-changed .
+      - name: dart analyze
+        run: dart analyze --fatal-infos --fatal-warnings .
+
+  test_vm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+      - name: Dart version
+        run: |
+          dart --version
+          uname -a
+      - name: Install dependencies
+        run: dart pub get
+      - name: Run tests (VM)
+        run: dart test --platform vm --coverage=./coverage
+      - name: Generate coverage report
+        run: |
+          dart pub global activate coverage
+          dart pub global run coverage:format_coverage --packages=.dart_tool/package_config.json --report-on=lib --lcov -o ./coverage/lcov.info -i ./coverage
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          directory: ./coverage/
+          flags: unittests
+          env_vars: OS,DART
+          fail_ci_if_error: false
+          verbose: true
+
+  # Widget/DOM and end-to-end tests run in headless Chrome (preinstalled on the
+  # ubuntu-latest runners). Only the browser-tagged suites under test/ui and
+  # test/e2e are exercised here; the VM suite above covers the pure logic.
+  test_browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+      - name: Install dependencies
+        run: dart pub get
+      - name: Chrome version
+        run: google-chrome --version
+      - name: Run widget + e2e tests (Chrome)
+        run: dart test -p chrome test/ui test/e2e
+
+  build_web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+      - name: Install dependencies
+        run: dart pub get
+      - name: Production build (dart2js, release)
+        run: dart run build_runner build --release --output build
