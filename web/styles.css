@@ -321,7 +321,15 @@ html.terminal-active .app-main {
   min-height: 0;
   overflow: hidden;
 }
-html.terminal-active .terminal-screen { height: 100%; min-height: 0; }
+/* Fill the available height ONLY when the screen is in normal (in-flow) layout.
+   In fullscreen / keyboard-open it is `position: fixed` and sized by inset +
+   `bottom: var(--kb)`; setting `height: 100%` there would over-constrain the box
+   (top + height wins, so the keyboard `bottom` lift is ignored) and on iOS a
+   fixed `height: 100%` resolves taller than the visible viewport. */
+html.terminal-active:not(.term-fullscreen):not(.keyboard-open) .terminal-screen {
+  height: 100%;
+  min-height: 0;
+}
 html.terminal-active .terminal-card { flex: 1; min-height: 0; }
 html.terminal-active .terminal-host { height: 100%; min-height: 0; max-height: none; }
 /* Keep scroll chaining inside the terminal even at the scrollback ends. */

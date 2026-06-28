@@ -55,7 +55,12 @@
   function apply() {
     queued = 0;
     var visible = vv.height;
-    var keyboard = Math.max(0, window.innerHeight - visible - vv.offsetTop);
+    // The keyboard inset is measured against the layout viewport — the same box
+    // `position: fixed` (and `bottom: var(--kb)`) resolves against. On iOS the
+    // layout viewport does NOT shrink for the keyboard, while window.innerHeight
+    // sometimes does, so take the larger as the stable full-height reference.
+    var full = Math.max(window.innerHeight, document.documentElement.clientHeight);
+    var keyboard = Math.max(0, full - visible - vv.offsetTop);
     root.style.setProperty('--vvh', visible + 'px');
     root.style.setProperty('--kb', keyboard + 'px');
     // A small threshold avoids flagging an accessory/suggestion bar as the
