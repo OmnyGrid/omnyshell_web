@@ -14,6 +14,15 @@
   remote shell. Filesystem commands (`:download`/`:upload`/`:drive`) are
   intentionally unavailable in the browser.
 
+### Fixed
+
+- The terminal now refits reliably on fullscreen enter/exit (and keyboard /
+  rotation / resize) via a `ResizeObserver`, instead of mis-sizing until the
+  keyboard was toggled.
+- The login Hub and Principal fields opt out of mobile auto-capitalization and
+  auto-correction (`autocapitalize=none`, `autocorrect=off`, `spellcheck=false`)
+  so the keyboard no longer capitalizes the first letter.
+
 ### Changed
 
 - On the terminal screen the page no longer scrolls or rubber-bands; the

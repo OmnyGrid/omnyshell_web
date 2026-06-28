@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:js_interop';
 
 import 'package:omnyshell/omnyshell_client_web.dart'
     show
@@ -62,6 +63,8 @@ class SessionViewScreen implements Screen {
   void Function()? _detachResize;
   void Function()? _detachOrientation;
   void Function()? _detachViewport;
+  web.ResizeObserver? _resizeObserver;
+  bool _fitScheduled = false;
 
   /// Builds the screen. Production callers omit the injected hooks.
   SessionViewScreen(
@@ -220,14 +223,28 @@ class SessionViewScreen implements Screen {
         ).element,
       );
       term.focus();
-      _detachResize = on(web.window, 'resize', (_) => _fit());
+      _detachResize = on(web.window, 'resize', (_) => _scheduleFit());
       // The soft keyboard resizes the *visual* viewport (not window), so refit
-      // xterm on its changes too — keeps cols/rows correct and the prompt row
-      // visible as the keyboard opens/closes. boot.js does the layout binding.
+      // on its changes too. boot.js does the CSS layout binding.
       final vv = web.window.visualViewport;
       if (vv != null) {
-        _detachViewport = on(vv, 'resize', (_) => _refitSoon());
+        _detachViewport = on(vv, 'resize', (_) => _scheduleFit());
       }
+      // The robust trigger: refit whenever the terminal host actually changes
+      // size (fullscreen toggle, keyboard, rotation, …). A ResizeObserver fires
+      // *after* layout, so xterm measures the settled box — unlike the ad-hoc
+      // fits that ran before the new layout applied on fullscreen exit.
+      final ro = web.ResizeObserver(
+        (
+              JSArray<web.ResizeObserverEntry> entries,
+              web.ResizeObserver observer,
+            ) {
+              _scheduleFit();
+            }
+            .toJS,
+      );
+      ro.observe(_host);
+      _resizeObserver = ro;
       // A rotation in fullscreen leaves the terminal mis-sized and awkward, so
       // drop back to the normal layout when the orientation actually flips.
       final orientation = web.window.matchMedia('(orientation: portrait)');
@@ -248,13 +265,19 @@ class SessionViewScreen implements Screen {
     if (t is XtermTerminalView) t.fit();
   }
 
-  /// Refits after the current frame(s) settle. The soft keyboard's
-  /// `visualViewport` resize fires before boot.js's `--kb` inset has been
-  /// applied to layout (notably on iOS), so an immediate fit would measure the
-  /// pre-keyboard size.
-  void _refitSoon() {
-    scheduleMicrotask(_fit);
-    Timer(const Duration(milliseconds: 80), _fit);
+  /// Coalesces refit requests to once per frame and runs the fit in a
+  /// `requestAnimationFrame` callback — after style/layout for any pending
+  /// change (class toggle, keyboard inset, …) has been computed, so xterm
+  /// measures the settled box rather than the previous one.
+  void _scheduleFit() {
+    if (_fitScheduled) return;
+    _fitScheduled = true;
+    web.window.requestAnimationFrame(
+      (double _) {
+        _fitScheduled = false;
+        _fit();
+      }.toJS,
+    );
   }
 
   void _toggleFullscreen() => _setFullscreen(!_fullscreen);
@@ -270,10 +293,10 @@ class SessionViewScreen implements Screen {
       'aria-label',
       on ? 'Exit fullscreen' : 'Enter fullscreen',
     );
-    // The container size changed; reflow xterm now and once more after layout
-    // settles (mirrors the double-fit in XtermTerminalView's constructor).
-    scheduleMicrotask(_fit);
-    Timer(const Duration(milliseconds: 80), _fit);
+    // The ResizeObserver refits once the new layout applies; this is a fallback
+    // for browsers where toggling fixed↔in-flow doesn't fire it promptly.
+    _scheduleFit();
+    Timer(const Duration(milliseconds: 120), _fit);
   }
 
   void _showError(AppError error) {
@@ -331,6 +354,7 @@ class SessionViewScreen implements Screen {
     _detachResize?.call();
     _detachOrientation?.call();
     _detachViewport?.call();
+    _resizeObserver?.disconnect();
     // Release the page scroll lock and any fullscreen state on the way out.
     web.document.documentElement?.classList.remove('terminal-active');
     if (_fullscreen) {

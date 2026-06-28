@@ -32,6 +32,7 @@ class LoginScreen implements Screen {
       value: prefill.hub,
       placeholder: 'hub.example.com:8443',
       autocomplete: 'url',
+      autocapitalize: 'none',
       onEnter: _submit,
     );
     _principal = input(
@@ -39,6 +40,7 @@ class LoginScreen implements Screen {
       value: prefill.principal,
       placeholder: 'alice',
       autocomplete: 'username',
+      autocapitalize: 'none',
       onEnter: _submit,
     );
     _token = input(
