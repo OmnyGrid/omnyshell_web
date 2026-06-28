@@ -248,9 +248,40 @@ button.danger:hover { background: var(--danger-weak); }
 .terminal-card { padding: 8px; background: #0b0e12; }
 .terminal-host {
   width: 100%;
-  height: min(70vh, 560px);
+  /* dvh so the terminal shrinks (rather than hiding under) the soft keyboard;
+     vh fallback for browsers without dvh, and a min-height floor so the fit
+     addon always has a measurable, non-zero container. */
+  height: 60vh;
+  height: 60dvh;
+  min-height: 260px;
+  max-height: 600px;
 }
 .terminal-host .xterm { height: 100%; }
+
+/* On-screen accessory key bar (touch devices lack Esc/Tab/Ctrl/arrows). */
+.term-accessory {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.term-accessory button {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+.term-accessory button.active {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
 
 /* Modal */
 .modal-overlay {

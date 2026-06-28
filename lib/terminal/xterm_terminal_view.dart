@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
@@ -16,12 +17,19 @@ class XtermTerminalView implements TerminalView {
   XDisposable? _resizeSub;
 
   /// Creates the terminal inside [parent] and fits it to the container.
+  ///
+  /// The fit is deferred to later frames rather than run synchronously after
+  /// `open()`: the fit addon reads the container's laid-out size, which isn't
+  /// available in the same tick the element is attached — fitting too early
+  /// leaves the terminal 0×0 and nothing renders. We fit on the next macrotask
+  /// and again shortly after so it picks up the real geometry.
   XtermTerminalView(web.HTMLElement parent)
     : _term = XTerminal(_options()),
       _fit = XFitAddon() {
     _term.loadAddon(_fit);
     _term.open(parent);
-    _fit.fit();
+    Timer(Duration.zero, fit);
+    Timer(const Duration(milliseconds: 80), fit);
   }
 
   static JSObject _options() {
@@ -39,8 +47,15 @@ class XtermTerminalView implements TerminalView {
     return o;
   }
 
-  /// Refits the terminal to its container (call after layout/resize).
-  void fit() => _fit.fit();
+  /// Refits the terminal to its container (call after layout/resize). Safe to
+  /// call before the container has a measurable size — fit failures are ignored.
+  void fit() {
+    try {
+      _fit.fit();
+    } on Object {
+      // Container not measurable yet; a later fit (resize/timer) will succeed.
+    }
+  }
 
   @override
   void write(List<int> bytes) =>
@@ -64,6 +79,12 @@ class XtermTerminalView implements TerminalView {
 
   @override
   void focus() => _term.focus();
+
+  @override
+  String get selection => _term.getSelection();
+
+  @override
+  void clearSelection() => _term.clearSelection();
 
   @override
   void dispose() {

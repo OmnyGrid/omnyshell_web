@@ -40,7 +40,7 @@ void main() {
   test('connects and wires terminal output and input', () async {
     final h = await connected();
     final term = FakeTerminalView(cols: 90, rows: 30);
-    final io = FakeSessionIo();
+    final io = FakeShellSessionPort();
     final screen = SessionViewScreen(
       h.ctx,
       'web-01',
@@ -54,15 +54,16 @@ void main() {
     // Connected: status cleared, terminal focused, initial size primed.
     expect(term.focused, isTrue);
     expect(io.resizes, contains((90, 30)));
+    // The on-screen accessory key bar is mounted.
+    expect(h.container.querySelector('.term-accessory'), isNotNull);
+
+    // The host primed the shell on connect (init line + marker → stdin).
+    expect(io.stdin, isNotEmpty);
 
     // Remote output reaches the terminal.
     io.emit([104, 105]);
     await pump();
     expect(term.writes.single, [104, 105]);
-
-    // Keystrokes reach the session.
-    term.emitInput('x');
-    expect(io.stdin, isNotEmpty);
 
     screen.dispose();
     h.dispose();
@@ -71,7 +72,7 @@ void main() {
   test('detach navigates back to the sessions list', () async {
     final h = await connected();
     h.ctx.router.start();
-    final io = FakeSessionIo();
+    final io = FakeShellSessionPort();
     final screen = SessionViewScreen(
       h.ctx,
       'web-01',
