@@ -223,7 +223,7 @@ class SessionViewScreen implements Screen {
       // visible as the keyboard opens/closes. boot.js does the layout binding.
       final vv = web.window.visualViewport;
       if (vv != null) {
-        _detachViewport = on(vv, 'resize', (_) => _fit());
+        _detachViewport = on(vv, 'resize', (_) => _refitSoon());
       }
       // A rotation in fullscreen leaves the terminal mis-sized and awkward, so
       // drop back to the normal layout when the orientation actually flips.
@@ -243,6 +243,15 @@ class SessionViewScreen implements Screen {
   void _fit() {
     final t = _term;
     if (t is XtermTerminalView) t.fit();
+  }
+
+  /// Refits after the current frame(s) settle. The soft keyboard's
+  /// `visualViewport` resize fires before boot.js's `--kb` inset has been
+  /// applied to layout (notably on iOS), so an immediate fit would measure the
+  /// pre-keyboard size.
+  void _refitSoon() {
+    scheduleMicrotask(_fit);
+    Timer(const Duration(milliseconds: 80), _fit);
   }
 
   void _toggleFullscreen() => _setFullscreen(!_fullscreen);

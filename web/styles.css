@@ -320,10 +320,12 @@ button.danger:hover { background: var(--danger-weak); }
 .term-fullscreen .terminal-screen,
 .keyboard-open .terminal-screen {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--vvh, 100dvh);
+  /* Pin to the layout viewport, then raise the bottom edge above the keyboard
+     by its measured inset (--kb, 0 when closed). On iOS `position: fixed`
+     resolves against the layout viewport — which the keyboard does NOT shrink —
+     so lifting `bottom` is far more reliable than sizing by visual height. */
+  inset: 0;
+  bottom: var(--kb, 0px);
   z-index: 40;
   gap: 0;
   background: #0b0e12;
