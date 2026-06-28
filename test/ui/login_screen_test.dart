@@ -29,6 +29,16 @@ void main() {
     screen.dispose();
   });
 
+  test('shows the web client and OmnyShell versions in the footer', () {
+    final screen = LoginScreen(h.ctx);
+    mount(h.container, screen.element);
+    final footer = h.container.querySelector('.version-footer');
+    expect(footer, isNotNull);
+    expect(footer!.textContent, contains('Web Client v'));
+    expect(footer.textContent, contains('OmnyShell v'));
+    screen.dispose();
+  });
+
   test('hub and principal opt out of mobile auto-capitalization', () {
     final screen = LoginScreen(h.ctx);
     mount(h.container, screen.element);

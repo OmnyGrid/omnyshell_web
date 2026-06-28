@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:web/web.dart' as web;
 
 import '../../app/app_context.dart';
+import '../../core/version.dart';
 import '../../state/auth_controller.dart';
 import '../dom.dart';
 import '../widgets.dart';
@@ -99,6 +100,13 @@ class LoginScreen implements Screen {
                   'Self-signed / dev Hubs must have their certificate trusted '
                   'by this browser or OS first — the browser controls TLS, so '
                   'there is no in-app bypass.',
+            ),
+            el(
+              'p',
+              classes: 'hint version-footer',
+              text:
+                  'Web Client v$webClientVersion · '
+                  'OmnyShell v$bundledOmnyShellVersion',
             ),
           ],
         ),

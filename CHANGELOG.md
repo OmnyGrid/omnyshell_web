@@ -1,3 +1,10 @@
+## Unreleased
+
+### Added
+
+- The login screen footer shows the Web Client version and the bundled OmnyShell
+  version.
+
 ## 1.1.0
 
 ### Added
