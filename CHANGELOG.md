@@ -1,3 +1,20 @@
+## 1.3.0
+
+### Added
+
+- Command history in the terminal: Up/Down walk previously entered commands
+  (prefix-restricted when text has been typed), persisted to `localStorage` and
+  scoped per principal+node. This reuses the `omnyshell` package's shared
+  history primitives (`CommandHistoryBuffer` + `HistoryCursor`, requires
+  `omnyshell` ^1.33.0), so it behaves identically to the CLI — only the storage
+  differs (browser storage vs a history file).
+
+### Changed
+
+- The login form panel uses more of the screen width on phones: the outer gutter
+  and the card's inner padding are trimmed on small viewports (respecting
+  safe-area insets), giving the inputs noticeably more room.
+
 ## 1.2.1
 
 ### Changed

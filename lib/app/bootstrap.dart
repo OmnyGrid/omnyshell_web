@@ -57,6 +57,7 @@ Future<App> bootstrap(web.HTMLElement root) async {
     theme: theme,
     router: router,
     settings: settings,
+    kv: kv,
     toasts: toasts,
   );
 

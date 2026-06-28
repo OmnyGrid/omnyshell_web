@@ -481,4 +481,13 @@ html.terminal-active .terminal-host { height: 100%; min-height: 0; max-height: n
   .terminal-screen .toolbar .grow { display: none; }
   .terminal-screen .toolbar button { padding: 6px 9px; font-size: 0.8rem; }
   .terminal-screen .toolbar h1 { font-size: 0.9rem; }
+  /* Login card uses more of the screen on phones: trim the outer gutter
+     (respecting safe-area insets) and the card's inner padding so the form
+     fields get extra width instead of being boxed in. The 420px cap still
+     keeps it from sprawling on larger phones/tablets. */
+  .center-host {
+    padding: 16px calc(12px + env(safe-area-inset-right))
+             16px calc(12px + env(safe-area-inset-left));
+  }
+  .card.pad-lg { padding: 24px; }
 }

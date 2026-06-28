@@ -13,6 +13,7 @@ import 'package:omnyshell/omnyshell_client_web.dart'
         PlatformInfo,
         SessionId,
         TokenCredentialProvider;
+import 'package:omnyshell_web/terminal/command_history.dart';
 import 'package:omnyshell_web/terminal/web_shell_host.dart';
 import 'package:test/test.dart';
 
@@ -29,11 +30,12 @@ void main() {
     port = FakeShellSessionPort(id: SessionId('testnonce'));
   });
 
-  WebShellHost build() => WebShellHost(
+  WebShellHost build({CommandHistory? history}) => WebShellHost(
     term: term,
     session: port,
     principal: 'alice',
     nodeId: 'web-01',
+    history: history,
   );
 
   Future<void> pump() => Future<void>.delayed(Duration.zero);
@@ -106,6 +108,64 @@ void main() {
     term.emitInput('\r');
     expect(sent(), contains("eval 'a'"));
     expect(sent(), isNot(contains("eval 'ab'")));
+  });
+
+  group('command history', () {
+    const up = '\x1b[A';
+    const down = '\x1b[B';
+
+    test('records committed commands and Up recalls the most recent', () async {
+      final history = CommandHistory.inMemory();
+      build(history: history);
+      port.emit(utf8.encode(markerLine('/home/alice')));
+      await pump();
+
+      term.emitInput('ls\r');
+      expect(history.entries, ['ls']);
+      // Let the command finish so the prompt returns before recalling.
+      port.emit(utf8.encode(markerLine('/home/alice')));
+      await pump();
+
+      port.stdin.clear();
+      term.emitInput(up); // recall "ls" onto the line
+      term.emitInput('\r'); // commit the recalled command
+      expect(sent(), contains("eval 'ls'"));
+    });
+
+    test('Up then Down walks history and restores the in-progress line', () {
+      final history = CommandHistory.inMemory(entries: ['deploy', 'debug']);
+      build(history: history);
+
+      term.emitInput('de'); // an in-progress draft (a prefix of both entries)
+      term.emitInput(up);
+      expect(shown(), contains('debug'));
+      term.emitInput(up);
+      expect(shown(), contains('deploy'));
+      term.emitInput(down);
+      term.emitInput(down); // past the newest match: the draft returns
+      expect(shown().endsWith('de'), isTrue);
+    });
+
+    test('a typed prefix restricts which entries Up visits', () {
+      final history = CommandHistory.inMemory(
+        entries: ['git status', 'ls', 'git log'],
+      );
+      build(history: history);
+
+      term.emitInput('git');
+      term.emitInput(up);
+      expect(shown(), contains('git log'));
+      term.emitInput(up);
+      expect(shown(), contains('git status'));
+    });
+
+    test('arrow keys are a safe no-op when history is disabled', () {
+      build(); // no history wired
+      port.stdin.clear();
+      term.emitInput(up);
+      term.emitInput(down);
+      expect(sent(), isEmpty); // nothing forwarded to the shell
+    });
   });
 
   test('exposes TerminalKeys (sticky Ctrl) for the accessory bar', () {
