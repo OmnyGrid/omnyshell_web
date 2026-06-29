@@ -123,6 +123,14 @@ class FakeHubConnection implements OmnyShellConnection {
         }
       case NodeListRequest():
         _emit(ControlFrame(NodeListResponse(_hub.nodes)));
+      case AiConfigRequest(:final requestId):
+        // The fake hub advertises no default AI provider; the web client then
+        // registers the `:ai` setup stub.
+        _emit(
+          ControlFrame(
+            AiConfigResponse(requestId: requestId, available: false),
+          ),
+        );
       case Ping(:final id, :final ts):
         _emit(ControlFrame(Pong(id: id, ts: ts, serverTs: ts)));
       case DetachedSessionsRequest(:final requestId, :final nodeId):

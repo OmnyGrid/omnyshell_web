@@ -4,6 +4,7 @@ import 'package:web/web.dart' as web;
 
 import '../core/omnyshell_service.dart';
 import '../router/router.dart';
+import '../state/ai_settings_controller.dart';
 import '../state/auth_controller.dart';
 import '../state/nodes_controller.dart';
 import '../state/terminal_display_controller.dart';
@@ -25,6 +26,7 @@ Future<App> bootstrap(web.HTMLElement root) async {
   final auth = AuthController(service, settings);
   final nodes = NodesController(service, NodeCache(kv));
   final display = TerminalDisplayController(settings);
+  final ai = AiSettingsController(settings, service);
 
   final darkQuery = web.window.matchMedia('(prefers-color-scheme: dark)');
   final theme = ThemeController(
@@ -58,6 +60,7 @@ Future<App> bootstrap(web.HTMLElement root) async {
     nodes: nodes,
     theme: theme,
     display: display,
+    ai: ai,
     router: router,
     settings: settings,
     kv: kv,

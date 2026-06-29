@@ -103,6 +103,10 @@ class OmnyShellService {
     Map<String, String> filter = const {},
   }) => _guard(() => client.listNodes(filter: filter));
 
+  /// Fetches the Hub's default AI configuration (provider/model, never a key).
+  Future<HubAiConfig> fetchHubAiConfig() =>
+      _guard(() => client.fetchHubAiConfig());
+
   /// Lists the caller's sessions (active + detached) on [nodeId].
   Future<List<DetachedSessionInfo>> listSessions(String nodeId) =>
       _guard(() => client.listSessions(nodeId: nodeId));

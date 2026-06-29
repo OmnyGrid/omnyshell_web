@@ -2,6 +2,7 @@ import 'package:web/web.dart' as web;
 
 import '../core/omnyshell_service.dart';
 import '../router/router.dart';
+import '../state/ai_settings_controller.dart';
 import '../state/auth_controller.dart';
 import '../state/nodes_controller.dart';
 import '../state/terminal_display_controller.dart';
@@ -27,6 +28,9 @@ class AppContext {
   /// Terminal display preferences (dimensions + text size).
   final TerminalDisplayController display;
 
+  /// AI agent preferences (Hub default vs custom provider/model/key).
+  final AiSettingsController ai;
+
   /// Hash router.
   final Router router;
 
@@ -47,6 +51,7 @@ class AppContext {
     required this.nodes,
     required this.theme,
     required this.display,
+    required this.ai,
     required this.router,
     required this.settings,
     required this.kv,
