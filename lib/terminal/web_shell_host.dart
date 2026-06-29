@@ -86,6 +86,12 @@ class WebShellHost implements TerminalKeys {
   /// Registered by a running local command (the `:ai` agent) so Ctrl-C requests
   /// an abort instead of just clearing the line; `null` when none is active.
   void Function()? _interruptHandler;
+
+  /// While true, the persistent *idle* prompt is not painted — a local command
+  /// (the `:ai` agent) owns the screen, mirroring the CLI's `hideIdlePrompt`.
+  /// The agent's own confirmation questions go through [_readLine], not
+  /// [_onPrompt], so they still render while this is set.
+  bool _idlePromptHidden = false;
   final DateTime _startedAt;
   ShellPromptState _lastPrompt = const ShellPromptState();
 
@@ -149,6 +155,7 @@ class WebShellHost implements TerminalKeys {
   void _onPrompt(ShellPromptState state) {
     _lastPrompt = state;
     _line.clear();
+    if (_idlePromptHidden) return; // the agent owns the screen
     _term.write(utf8.encode(_prompt(state)));
   }
 
@@ -412,7 +419,12 @@ class WebShellHost implements TerminalKeys {
       currentRemoteCwd: () => _lastPrompt.cwd,
       // Interactive prompts + Ctrl-C abort for the `:ai` agent.
       readLine: _readLine,
-      onInterruptRequest: (handler) => _interruptHandler = handler,
+      onInterruptRequest: (handler) {
+        _interruptHandler = handler;
+        // Suppress the idle prompt while the agent owns the screen, and restore
+        // it (via _repaintPrompt below) once the command clears its handler.
+        _idlePromptHidden = handler != null;
+      },
       horizontalRule: _horizontalRule,
       // Run the agent's commands in the live PTY session so sudo (and other
       // interactive prompts) work; POSIX only — others fall back to exec.
@@ -427,6 +439,7 @@ class WebShellHost implements TerminalKeys {
     } finally {
       // Defensively drop any prompt/interrupt state the command left behind.
       _interruptHandler = null;
+      _idlePromptHidden = false;
       final sink = _lineSink;
       if (sink != null) {
         _lineSink = null;

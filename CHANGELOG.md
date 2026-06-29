@@ -1,3 +1,12 @@
+## 1.5.2
+
+### Fixed
+
+- The `:ai` agent no longer flashes a fresh shell prompt line between its
+  command outputs in the web client. While the agent owns the screen its idle
+  prompt is now suppressed — matching the CLI — and restored once the agent
+  finishes. Interactive confirmation prompts are unaffected.
+
 ## 1.5.1
 
 ### Changed

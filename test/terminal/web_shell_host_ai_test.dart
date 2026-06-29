@@ -125,6 +125,8 @@ void main() {
       term.writes.map((w) => utf8.decode(w, allowMalformed: true)).join();
   Future<void> pumpMs([int ms = 5]) =>
       Future<void>.delayed(Duration(milliseconds: ms));
+  // A command-completion marker (CwdMarker token derived from the session id).
+  String markerLine(String cwd) => '__OMNYSHELL_CWD_testnonce__$cwd\t\t\t\n';
 
   test('readLine delivers the next committed line to the command', () async {
     final probe = _ProbeCommand();
@@ -155,6 +157,38 @@ void main() {
     expect(out, contains('line1\r\nline2\r\nline3\r\n'));
     // No bare LF that isn't part of a CRLF (the staircase signature).
     expect(RegExp(r'(?<!\r)\n').hasMatch(out), isFalse);
+  });
+
+  test('idle prompt is suppressed while the agent owns the screen', () async {
+    final probe = _ProbeCommand();
+    final registry = LocalCommandRegistry()..register(probe);
+    buildWith(registry);
+
+    term.emitInput(':probe\r');
+    await probe.started; // the agent registered its interrupt handler
+
+    // A command-completion marker arriving mid-run (as the `:ai` agent's own
+    // commands do) must NOT paint a fresh idle prompt between output lines.
+    final before = 'alice@web-01'.allMatches(shown()).length;
+    port.emit(utf8.encode(markerLine('/home/alice')));
+    await pumpMs();
+    expect(
+      'alice@web-01'.allMatches(shown()).length,
+      before,
+      reason: 'no idle prompt while the agent owns the screen',
+    );
+
+    // Finishing the agent restores the prompt exactly once (via _repaintPrompt),
+    // reflecting the cwd the suppressed marker carried.
+    term.emitInput('yes\r');
+    await pumpMs();
+    final after = shown();
+    expect(
+      'alice@web-01'.allMatches(after).length,
+      before + 1,
+      reason: 'prompt repainted once after the agent finishes',
+    );
+    expect(after, contains('/home/alice'));
   });
 
   test('Ctrl-C while reading aborts the prompt with "q"', () async {
