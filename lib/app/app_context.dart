@@ -4,6 +4,7 @@ import '../core/omnyshell_service.dart';
 import '../router/router.dart';
 import '../state/auth_controller.dart';
 import '../state/nodes_controller.dart';
+import '../state/terminal_display_controller.dart';
 import '../state/theme_controller.dart';
 import '../storage/key_value_store.dart';
 import '../storage/settings_store.dart';
@@ -22,6 +23,9 @@ class AppContext {
 
   /// Theme preference + application.
   final ThemeController theme;
+
+  /// Terminal display preferences (dimensions + text size).
+  final TerminalDisplayController display;
 
   /// Hash router.
   final Router router;
@@ -42,6 +46,7 @@ class AppContext {
     required this.auth,
     required this.nodes,
     required this.theme,
+    required this.display,
     required this.router,
     required this.settings,
     required this.kv,

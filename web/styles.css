@@ -145,7 +145,7 @@ code, kbd, .mono { font-family: var(--font-mono); font-size: 0.92em; }
 .field label { font-size: 0.85rem; color: var(--fg-muted); font-weight: 600; }
 .field .hint { font-size: 0.8rem; color: var(--fg-muted); }
 
-input[type="text"], input[type="password"], input[type="url"], select {
+input[type="text"], input[type="password"], input[type="url"], input[type="number"], select {
   width: 100%;
   padding: 10px 12px;
   font: inherit;
@@ -158,6 +158,16 @@ input:focus-visible { box-shadow: var(--focus); border-color: var(--accent); }
 
 .check { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
 .check input { width: auto; }
+
+/* Radio group (settings panel: dimension preset + text size). */
+.radio-group { display: flex; flex-direction: column; gap: 8px; }
+.radio-group.inline { flex-direction: row; flex-wrap: wrap; gap: 12px; }
+.radio { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+.radio input { width: auto; }
+.settings-panel h3 { font-size: 1rem; margin: 0; }
+.settings-panel .custom-dims { gap: 12px; flex-wrap: wrap; }
+.settings-panel .custom-dims .field { flex: 1; min-width: 90px; }
+.settings-panel .custom-dims.disabled { opacity: 0.5; }
 
 button {
   font: inherit;
@@ -303,10 +313,12 @@ button.danger:hover { background: var(--danger-weak); }
 }
 .term-accessory button {
   flex: 0 0 auto;
-  min-width: 44px;
-  min-height: 40px;
-  padding: 8px 12px;
-  font-size: 0.9rem;
+  /* Sized via --term-key-scale (set per session from the terminal font) so the
+     keys shrink/grow with the text; defaults to 1 = the original sizing. */
+  min-width: calc(44px * var(--term-key-scale, 1));
+  min-height: calc(40px * var(--term-key-scale, 1));
+  padding: calc(8px * var(--term-key-scale, 1)) calc(12px * var(--term-key-scale, 1));
+  font-size: calc(0.9rem * var(--term-key-scale, 1));
 }
 .term-accessory button.active {
   background: var(--accent);
@@ -346,8 +358,10 @@ html.terminal-active:not(.term-fullscreen):not(.keyboard-open) .terminal-screen 
 }
 html.terminal-active .terminal-card { flex: 1; min-height: 0; }
 html.terminal-active .terminal-host { height: 100%; min-height: 0; max-height: none; }
-/* The terminal's minimum height (viewport − header/toolbar − key bar) is applied
-   inline by the screen controller, and cleared while the keyboard is open. */
+/* The terminal's definite height (viewport − header/toolbar − key bar) is applied
+   inline by the screen controller (overriding the 100% above), and cleared in
+   fullscreen / while the keyboard is open so the fixed-layout CSS sizes it. The
+   100% here is only the pre-script fallback. */
 /* Keep scroll chaining inside the terminal even at the scrollback ends. */
 .terminal-host .xterm-viewport { overscroll-behavior: contain; }
 

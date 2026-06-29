@@ -20,6 +20,12 @@ extension type XTerminal._(JSObject _) implements JSObject {
   /// Loads an addon (e.g. the fit addon).
   external void loadAddon(JSObject addon);
 
+  /// The live options object (xterm 5.x: `term.options.fontSize = n`).
+  external JSObject get options;
+
+  /// Resizes the terminal to an explicit [cols]×[rows].
+  external void resize(int cols, int rows);
+
   /// Registers a keystroke handler; the callback receives a JS string.
   external XDisposable onData(JSFunction handler);
 
@@ -37,6 +43,10 @@ extension type XTerminal._(JSObject _) implements JSObject {
 
   /// Scrolls the viewport to the bottom (the latest output / prompt).
   external void scrollToBottom();
+
+  /// Forces a redraw of rows [start]..[end] (inclusive), e.g. after a layout
+  /// change that left the canvas stale.
+  external void refresh(int start, int end);
 
   /// Disposes the terminal.
   external void dispose();

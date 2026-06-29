@@ -57,4 +57,31 @@ void main() {
     settings.theme = 'dark';
     expect(kv.snapshot.keys, contains('omnyshell.theme'));
   });
+
+  test('terminal display preferences round-trip with the omnyshell prefix', () {
+    settings
+      ..terminalDimPreset = 'custom'
+      ..terminalCustomCols = 120
+      ..terminalCustomRows = 40
+      ..terminalTextSize = 'smaller';
+    expect(settings.terminalDimPreset, 'custom');
+    expect(settings.terminalCustomCols, 120);
+    expect(settings.terminalCustomRows, 40);
+    expect(settings.terminalTextSize, 'smaller');
+    expect(
+      kv.snapshot.keys,
+      containsAll([
+        'omnyshell.terminal.dimPreset',
+        'omnyshell.terminal.customCols',
+        'omnyshell.terminal.customRows',
+        'omnyshell.terminal.textSize',
+      ]),
+    );
+  });
+
+  test('terminal custom dims are null when unset or non-numeric', () {
+    expect(settings.terminalCustomCols, isNull);
+    settings.terminalCustomCols = null;
+    expect(settings.terminalCustomCols, isNull);
+  });
 }

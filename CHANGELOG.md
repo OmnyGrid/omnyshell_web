@@ -1,3 +1,36 @@
+## 1.4.0
+
+### Added
+
+- Selectable terminal dimensions for new sessions, in a new global Settings
+  panel (⚙ in the header): Auto-fit (the previous behavior), a Standard 80×24,
+  device-aware "Fit landscape" / "Fit portrait" presets computed for the current
+  screen, and a Custom cols×rows entry. The PTY can't be resized after a session
+  starts, so a fixed grid is pinned and the font is scaled to fit it — the
+  terminal tracks the window in both orientations without changing cols/rows.
+- Terminal text-size control (Auto / Smaller / Normal / Larger). Auto derives the
+  font from the chosen columns so they fill the width; the on-screen key bar
+  scales with the text, so a smaller font yields smaller keys and more columns on
+  a phone. Dimension choices apply to the next session; text size applies live.
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.34.0.
+- The terminal host is now pinned to a definite height equal to the available
+  space, so it reliably shrinks as well as grows with the window (previously a
+  too-tall canvas — e.g. after exiting fullscreen — could not shrink back).
+- Exiting fullscreen forces an xterm redraw and the terminal re-fits across a few
+  frames after mount, fixing a stale height that previously needed a manual
+  reflow.
+
+### Fixed
+
+- "Terminate" on the session screen now reliably ends the session on the node.
+  It uses the control-plane kill-by-id (the same path the sessions list uses)
+  instead of an in-channel close, whose `ChannelClose` frame a browser WebSocket
+  could drop on teardown — leaving the node to park the session so it stayed
+  listed.
+
 ## 1.3.0
 
 ### Added
