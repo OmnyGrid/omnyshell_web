@@ -1,5 +1,13 @@
 ## 1.5.1
 
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.37.0, which improves the `:ai` agent:
+  plan mode now continues from the failed step on a re-presented plan (no
+  re-running already-succeeded, possibly non-idempotent commands), and
+  version/help probes (`node --version`, `dart --version`, …) are classified as
+  safe investigation instead of mutating commands.
+
 ### Fixed
 
 - The `:ai` agent now runs its commands in the **live PTY session** (POSIX
