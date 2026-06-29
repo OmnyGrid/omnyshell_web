@@ -21,6 +21,12 @@
 
 - Bumped the `omnyshell` dependency to ^1.36.0.
 
+### Fixed
+
+- The `:ai` agent's captured command output no longer "staircases" in the
+  terminal: local-command output now normalizes bare LFs to CRLF (the browser
+  terminal is a pipe with no line discipline, unlike the remote shell's PTY).
+
 ## 1.4.1
 
 ### Fixed

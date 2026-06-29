@@ -358,6 +358,19 @@ class WebShellHost implements TerminalKeys {
     return '─' * (cols > 0 ? cols : 80);
   }
 
+  /// Writes [text] as a line, normalizing bare LFs to CRLF and appending one.
+  ///
+  /// The remote shell's own output is already CRLF (the node's PTY applies
+  /// `onlcr`), but local `:` commands — notably the `:ai` agent echoing captured
+  /// `exec` output — hand us raw multi-line text. The browser terminal is a pipe
+  /// with no line discipline, so a bare `\n` moves down without returning to
+  /// column 0 ("staircase"); translate it here.
+  void _writeLine(String text) => _term.write(
+    utf8.encode(
+      '${text.replaceAll('\r\n', '\n').replaceAll('\n', '\r\n')}\r\n',
+    ),
+  );
+
   /// Runs a local `:` command and repaints the prompt (or leaves the session on
   /// `:exit`/`:detach`), mirroring the CLI's `onLine` local-command branch.
   Future<void> _runLocalCommand(
@@ -379,7 +392,7 @@ class WebShellHost implements TerminalKeys {
       principal: _principalInfo,
       session: _remoteSession,
       startedAt: _startedAt,
-      writeLine: (text) => _term.write(utf8.encode('$text\r\n')),
+      writeLine: _writeLine,
       currentRemoteCwd: () => _lastPrompt.cwd,
       // Interactive prompts + Ctrl-C abort for the `:ai` agent. `runInSession`
       // stays null (the browser shell is a pipe), so the agent runs its commands
@@ -391,7 +404,7 @@ class WebShellHost implements TerminalKeys {
     try {
       await commands.handle(line, context);
     } on Object catch (e) {
-      _term.write(utf8.encode('$e\r\n'));
+      _writeLine('$e');
     } finally {
       // Defensively drop any prompt/interrupt state the command left behind.
       _interruptHandler = null;

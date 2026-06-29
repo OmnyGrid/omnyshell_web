@@ -46,6 +46,22 @@ class _ProbeCommand extends LocalCommand {
   }
 }
 
+/// A probe that writes a (possibly multi-line) string via `context.writeLine`.
+class _WriterCommand extends LocalCommand {
+  _WriterCommand(this._text);
+  final String _text;
+
+  @override
+  String get name => 'write';
+
+  @override
+  String get description => 'test writer';
+
+  @override
+  Future<void> run(LocalCommandContext context, List<String> args) async =>
+      context.writeLine(_text);
+}
+
 void main() {
   late FakeTerminalView term;
   late FakeShellSessionPort port;
@@ -107,6 +123,20 @@ void main() {
     await pumpMs();
 
     expect(probe.answer, 'yes');
+  });
+
+  test('multi-line command output is CRLF-normalized (no staircase)', () async {
+    final probe = _WriterCommand('line1\nline2\nline3');
+    final registry = LocalCommandRegistry()..register(probe);
+    buildWith(registry);
+
+    term.emitInput(':write\r');
+    await pumpMs();
+
+    final out = shown();
+    expect(out, contains('line1\r\nline2\r\nline3\r\n'));
+    // No bare LF that isn't part of a CRLF (the staircase signature).
+    expect(RegExp(r'(?<!\r)\n').hasMatch(out), isFalse);
   });
 
   test('Ctrl-C while reading aborts the prompt with "q"', () async {
