@@ -5,6 +5,7 @@ import 'package:web/web.dart' as web;
 import '../router/router.dart';
 import '../state/theme_controller.dart';
 import '../ui/dom.dart';
+import '../ui/settings_panel.dart';
 import '../ui/screens/login_screen.dart';
 import '../ui/screens/node_detail_screen.dart';
 import '../ui/screens/nodes_screen.dart';
@@ -120,6 +121,14 @@ class App {
       );
     }
 
+    children.add(
+      button(
+        '⚙',
+        className: 'icon ghost',
+        ariaLabel: 'Settings',
+        onClick: () => showSettingsPanel(ctx),
+      ),
+    );
     children.add(_themeToggle());
 
     if (connected) {

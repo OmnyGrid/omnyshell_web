@@ -14,6 +14,10 @@ class SettingsStore {
   static const String _principalKey = '${_prefix}principal';
   static const String _rememberKey = '${_prefix}rememberToken';
   static const String _tokenPrefix = '${_prefix}token.';
+  static const String _termDimKey = '${_prefix}terminal.dimPreset';
+  static const String _termColsKey = '${_prefix}terminal.customCols';
+  static const String _termRowsKey = '${_prefix}terminal.customRows';
+  static const String _termTextKey = '${_prefix}terminal.textSize';
 
   final KeyValueStore _kv;
 
@@ -53,4 +57,26 @@ class SettingsStore {
 
   /// Removes every persisted token (used on "forget all").
   void clearAllTokens() => _kv.removeWhereKeyStartsWith(_tokenPrefix);
+
+  /// The persisted terminal dimension preset name, or `null`.
+  String? get terminalDimPreset => _kv.read(_termDimKey);
+  set terminalDimPreset(String? value) =>
+      value == null ? _kv.remove(_termDimKey) : _kv.write(_termDimKey, value);
+
+  /// The persisted custom column count, or `null`.
+  int? get terminalCustomCols => int.tryParse(_kv.read(_termColsKey) ?? '');
+  set terminalCustomCols(int? value) => value == null
+      ? _kv.remove(_termColsKey)
+      : _kv.write(_termColsKey, '$value');
+
+  /// The persisted custom row count, or `null`.
+  int? get terminalCustomRows => int.tryParse(_kv.read(_termRowsKey) ?? '');
+  set terminalCustomRows(int? value) => value == null
+      ? _kv.remove(_termRowsKey)
+      : _kv.write(_termRowsKey, '$value');
+
+  /// The persisted terminal text-size preference, or `null`.
+  String? get terminalTextSize => _kv.read(_termTextKey);
+  set terminalTextSize(String? value) =>
+      value == null ? _kv.remove(_termTextKey) : _kv.write(_termTextKey, value);
 }

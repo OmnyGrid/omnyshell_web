@@ -15,6 +15,8 @@ class XtermTerminalView implements TerminalView {
   final XFitAddon _fit;
   XDisposable? _dataSub;
   XDisposable? _resizeSub;
+  Timer? _autoFit0;
+  Timer? _autoFit80;
 
   /// Creates the terminal inside [parent] and fits it to the container.
   ///
@@ -28,8 +30,16 @@ class XtermTerminalView implements TerminalView {
       _fit = XFitAddon() {
     _term.loadAddon(_fit);
     _term.open(parent);
-    Timer(Duration.zero, fit);
-    Timer(const Duration(milliseconds: 80), fit);
+    _autoFit0 = Timer(Duration.zero, fit);
+    _autoFit80 = Timer(const Duration(milliseconds: 80), fit);
+  }
+
+  /// Cancels the deferred initial auto-fit. The session screen calls this in
+  /// fixed-dimension mode, where it pins the columns/rows itself and the fit
+  /// addon would otherwise override them once these timers fire.
+  void cancelAutoFit() {
+    _autoFit0?.cancel();
+    _autoFit80?.cancel();
   }
 
   static JSObject _options() {
@@ -54,6 +64,31 @@ class XtermTerminalView implements TerminalView {
       _fit.fit();
     } on Object {
       // Container not measurable yet; a later fit (resize/timer) will succeed.
+    }
+  }
+
+  /// Sets the rendered font size in CSS pixels. Re-renders glyphs at the new
+  /// size but does *not* change the column/row count on its own — only [fit] or
+  /// [resize] do — which is exactly what a fixed-dimension session needs.
+  void setFontSize(int px) => _term.options['fontSize'] = px.toJS;
+
+  /// The current rendered font size in CSS pixels (defaults to 13).
+  int get fontSize {
+    final v = _term.options['fontSize'];
+    return v == null ? 13 : (v as JSNumber).toDartInt;
+  }
+
+  /// Pins the terminal to an explicit [cols]×[rows] (no-op in xterm when
+  /// unchanged, so it won't spuriously fire a resize event).
+  void resize(int cols, int rows) => _term.resize(cols, rows);
+
+  /// Forces a redraw of every visible row (the canvas can go stale after a
+  /// layout change such as exiting fullscreen).
+  void refresh() {
+    try {
+      _term.refresh(0, _term.rows - 1);
+    } on Object {
+      // Harmless if the terminal isn't ready yet.
     }
   }
 
@@ -97,6 +132,8 @@ class XtermTerminalView implements TerminalView {
 
   @override
   void dispose() {
+    _autoFit0?.cancel();
+    _autoFit80?.cancel();
     _dataSub?.dispose();
     _resizeSub?.dispose();
     _term.dispose();

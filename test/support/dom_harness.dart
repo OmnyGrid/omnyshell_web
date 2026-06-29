@@ -3,6 +3,7 @@ import 'package:omnyshell_web/core/omnyshell_service.dart';
 import 'package:omnyshell_web/router/router.dart';
 import 'package:omnyshell_web/state/auth_controller.dart';
 import 'package:omnyshell_web/state/nodes_controller.dart';
+import 'package:omnyshell_web/state/terminal_display_controller.dart';
 import 'package:omnyshell_web/state/theme_controller.dart';
 import 'package:omnyshell_web/storage/key_value_store.dart';
 import 'package:omnyshell_web/storage/node_cache.dart';
@@ -72,6 +73,7 @@ class DomHarness {
       prefersDark: () => prefersDark,
       onApply: (t) => themeTarget.setAttribute('data-theme', t.attr),
     );
+    final display = TerminalDisplayController(settings);
     final router = Router(Routes.all);
     final toasts = Toasts(toastHost, ttl: const Duration(milliseconds: 50));
 
@@ -80,6 +82,7 @@ class DomHarness {
       auth: auth,
       nodes: nodes,
       theme: theme,
+      display: display,
       router: router,
       settings: settings,
       kv: kv,

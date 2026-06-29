@@ -6,6 +6,7 @@ import '../core/omnyshell_service.dart';
 import '../router/router.dart';
 import '../state/auth_controller.dart';
 import '../state/nodes_controller.dart';
+import '../state/terminal_display_controller.dart';
 import '../state/theme_controller.dart';
 import '../storage/local_storage_store.dart';
 import '../storage/node_cache.dart';
@@ -23,6 +24,7 @@ Future<App> bootstrap(web.HTMLElement root) async {
   final service = OmnyShellService();
   final auth = AuthController(service, settings);
   final nodes = NodesController(service, NodeCache(kv));
+  final display = TerminalDisplayController(settings);
 
   final darkQuery = web.window.matchMedia('(prefers-color-scheme: dark)');
   final theme = ThemeController(
@@ -55,6 +57,7 @@ Future<App> bootstrap(web.HTMLElement root) async {
     auth: auth,
     nodes: nodes,
     theme: theme,
+    display: display,
     router: router,
     settings: settings,
     kv: kv,

@@ -14,10 +14,12 @@ import '../../app/app_context.dart';
 import '../../core/app_error.dart';
 import '../../terminal/command_history.dart';
 import '../../terminal/terminal_accessory.dart';
+import '../../terminal/terminal_dimensions.dart';
 import '../../terminal/terminal_view.dart';
 import '../../terminal/web_shell_host.dart';
 import '../../terminal/xterm_terminal_view.dart';
 import '../dom.dart';
+import '../settings_panel.dart' show deviceMetrics;
 import '../widgets.dart';
 
 /// The interactive terminal view: opens (or resumes) a shell session on a node
@@ -59,6 +61,9 @@ class SessionViewScreen implements Screen {
   TerminalView? _term;
   WebShellHost? _shell;
   NodeDescriptor? _node;
+
+  /// The opened session's id, for the control-plane terminate (kill).
+  String? _sessionId;
   bool _finished = false;
   bool _fullscreen = false;
   void Function()? _detachResize;
@@ -67,6 +72,12 @@ class SessionViewScreen implements Screen {
   web.ResizeObserver? _resizeObserver;
   bool _fitScheduled = false;
   Timer? _settleTimer;
+  StreamSubscription<TerminalTextSize>? _textSizeSub;
+
+  /// The fixed PTY dimensions chosen for this session, or `null` in auto-fit
+  /// mode. When set, the terminal keeps these cols/rows for its lifetime and only
+  /// the font is rescaled on resize — the backend PTY can't be resized.
+  ({int cols, int rows})? _fixedDims;
 
   /// Builds the screen. Production callers omit the injected hooks.
   SessionViewScreen(
@@ -161,12 +172,40 @@ class SessionViewScreen implements Screen {
       return;
     }
     _term = term;
-    final size = term.size;
-    final cols = size.cols > 0 ? size.cols : 80;
-    final rows = size.rows > 0 ? size.rows : 24;
+    // Resolve the chosen dimensions only for a *fresh* shell: a resumed session
+    // already has a fixed PTY size on the node that we can't change, so we let
+    // the terminal fit normally and never pin it.
+    _fixedDims = sessionRef == 'new'
+        ? ctx.display.resolveDimensions(deviceMetrics())
+        : null;
+
+    final int cols;
+    final int rows;
+    final fixed = _fixedDims;
+    if (fixed != null) {
+      // Pin the terminal to the chosen size and scale the font so those columns
+      // fit the container; suppress the addon's deferred auto-fit (it would
+      // override the pinned cols/rows). `_applyFont` re-pins after the font.
+      if (term is XtermTerminalView) {
+        term.cancelAutoFit();
+        term.resize(fixed.cols, fixed.rows);
+        _applyFont();
+      }
+      cols = fixed.cols;
+      rows = fixed.rows;
+    } else {
+      // Auto-fit: keep the original behavior, honoring a manual text size.
+      if (term is XtermTerminalView) _applyFont();
+      final size = term.size;
+      cols = size.cols > 0 ? size.cols : 80;
+      rows = size.rows > 0 ? size.rows : 24;
+    }
 
     try {
       final session = await opener(cols, rows);
+      // Remember the session id for a reliable control-plane terminate (see
+      // [_terminate]); it's set once the node confirms the session is open.
+      _sessionId = session.id?.value;
       // Load the node descriptor in the background so local `:` commands
       // (`:info`, `:tree`, `:tunnel`, …) have node metadata; best-effort.
       unawaited(_loadNode());
@@ -259,6 +298,14 @@ class SessionViewScreen implements Screen {
       _detachOrientation = on(orientation, 'change', (_) {
         if (_fullscreen) _setFullscreen(false);
       });
+      // Re-apply the font live when the text-size preference changes (the
+      // dimension preset only affects the *next* session, so it isn't watched).
+      // Skip the immediate replay `listen` fires — the font is already applied.
+      _textSizeSub = ctx.display.textSize.stream.listen((_) => _scheduleFit());
+      // The flex/dvh layout settles over a few frames after mount; re-fit across
+      // them so xterm measures the final container height (rather than a stale
+      // box that previously needed a manual reflow to correct).
+      _settle();
     } on Object catch (e) {
       term.dispose();
       _term = null;
@@ -269,40 +316,121 @@ class SessionViewScreen implements Screen {
   /// Refits the xterm terminal to its container (after a window resize or a
   /// fullscreen toggle changes the available geometry).
   void _fit() {
-    _applyMinHeight();
+    _applyHostHeight();
     final t = _term;
-    if (t is XtermTerminalView) t.fit();
+    if (t is! XtermTerminalView) return;
+    if (_fixedDims == null) {
+      // Auto-fit: cols/rows track the container (the original behavior).
+      t.fit();
+    } else {
+      // Fixed mode: rescale the font only — `_applyFont` re-pins the (unchanged)
+      // size, a no-op in xterm, so no resize fires and the PTY stays constant.
+      _applyFont();
+    }
   }
 
-  /// Floors the terminal height at the space available between everything above
-  /// it (header, toolbar, paddings, gaps) and the key bar reserved below it, so
-  /// it uses the full area while never overlapping the key bar.
+  /// Applies the resolved terminal font size and scales the key bar to match.
+  ///
+  /// In fixed mode the baseline font is the largest that makes the whole chosen
+  /// grid fit the container in *both* dimensions, so the terminal scales with the
+  /// window (a fixed grid never reflows its cols/rows). In auto-fit mode the
+  /// baseline is the terminal default (13). The text-size preference then adjusts
+  /// that baseline.
+  void _applyFont() {
+    final t = _term;
+    if (t is! XtermTerminalView) return;
+    final fixed = _fixedDims;
+    final base = fixed == null ? 13 : _fitFontPx(fixed.cols, fixed.rows);
+    final px = switch (ctx.display.textSize.value) {
+      TerminalTextSize.auto => base,
+      TerminalTextSize.smaller => (base * 0.8).floor().clamp(
+        kMinFontPx,
+        kMaxFontPx,
+      ),
+      TerminalTextSize.normal => 13,
+      TerminalTextSize.larger => (base * 1.25).ceil().clamp(
+        kMinFontPx,
+        kMaxFontPx,
+      ),
+    };
+    t.setFontSize(px);
+    _applyKeyScale(px);
+    // Re-derive cols (auto-fit) or re-pin them (fixed) after the font change.
+    if (fixed == null) {
+      t.fit();
+    } else {
+      t.resize(fixed.cols, fixed.rows);
+    }
+  }
+
+  /// The largest font (px) at which a [cols]×[rows] grid still fits the host in
+  /// both width and height, clamped to the sane range. Falls back to the default
+  /// before the host has a measurable size.
+  int _fitFontPx(int cols, int rows) {
+    // Width from the host (a block at width:100%, not inflated by content);
+    // height from the viewport-available space (NOT the host's own height, which
+    // the terminal canvas inflates — see [_availableHeight]).
+    final width = _host.getBoundingClientRect().width;
+    final height = _availableHeight();
+    if (width <= 0 || height <= 0) return 13;
+    final fitWidth = width / (cols * kCellWidthRatio);
+    final fitHeight = height / (rows * kCellHeightRatio);
+    final fit = fitWidth < fitHeight ? fitWidth : fitHeight;
+    return fit.floor().clamp(kMinFontPx, kMaxFontPx);
+  }
+
+  /// Scales the on-screen key bar with the terminal font via a CSS variable so
+  /// smaller text yields smaller keys (more keys visible on a phone).
+  void _applyKeyScale(int px) {
+    final scale = (px / 13).clamp(0.7, 1.6);
+    element.style.setProperty('--term-key-scale', scale.toStringAsFixed(3));
+  }
+
+  /// Pins the terminal host to a *definite* pixel height equal to the space
+  /// available between the chrome above it and the key bar below it.
+  ///
+  /// A definite height (not just a `min-height` floor) is essential: the xterm
+  /// canvas can be taller than the viewport (e.g. right after exiting fullscreen)
+  /// and, when the CSS `height: 100%` resolves to `auto`, that content height
+  /// would win and a `min-height` could never pull the host back down — so the
+  /// terminal grew with the window but never shrank. An explicit `height` is both
+  /// a floor and a ceiling, so the host always tracks the available space.
   ///
   /// Skipped in fullscreen (the fixed container already fills the screen) and
-  /// while the keyboard is open (the terminal must be free to shrink into the
-  /// space above the keyboard, with no minimum forcing overlap).
-  void _applyMinHeight() {
+  /// while the keyboard is open (the terminal is sized by the fixed layout); the
+  /// inline height is removed so the CSS rules take over.
+  void _applyHostHeight() {
     final kbOpen =
         web.document.documentElement?.classList.contains('keyboard-open') ??
         false;
     if (_fullscreen || kbOpen) {
-      _host.style.removeProperty('min-height');
+      _host.style.removeProperty('height');
       return;
     }
-    // Measure the natural layout first (clear any prior floor so the rects are
-    // not skewed by it). The host's top offset captures all chrome above it; the
-    // key-bar box (plus the gap to it) is what must be reserved below.
-    _host.style.removeProperty('min-height');
+    // Clear our prior height so the available-space measurement isn't skewed by
+    // it, then pin the host to the measured available height.
+    _host.style.removeProperty('height');
+    final available = _availableHeight();
+    if (available > 0) {
+      _host.style.height = '${available.round()}px';
+    }
+  }
+
+  /// The height available to the terminal: the viewport minus the chrome above
+  /// the host and the key bar (plus its gap) reserved below it.
+  ///
+  /// Derived from the host's *top* offset (stable) and the bar's box — never the
+  /// host's own height — so it can't feed back on the terminal's current,
+  /// content-inflated height. That feedback is what previously let a fixed-grid
+  /// terminal grow but never shrink (e.g. after exiting fullscreen).
+  double _availableHeight() {
     final viewport =
         web.window.visualViewport?.height ?? web.window.innerHeight.toDouble();
     final hostRect = _host.getBoundingClientRect();
     final barRect = _accessory.getBoundingClientRect();
     final gapBelow = barRect.top - hostRect.bottom;
     final reserveBelow = barRect.height + (gapBelow > 0 ? gapBelow : 0);
-    final available = viewport - hostRect.top - reserveBelow;
-    if (available > 0) {
-      _host.style.minHeight = '${available.round()}px';
-    }
+    return viewport - hostRect.top - reserveBelow;
   }
 
   /// Coalesces refit requests to once per frame and runs the fit in a
@@ -344,27 +472,34 @@ class SessionViewScreen implements Screen {
       'aria-label',
       on ? 'Exit fullscreen' : 'Enter fullscreen',
     );
-    _settleAfterToggle();
+    _settle();
   }
 
-  /// Re-fits the terminal and pins it to the bottom (latest output / prompt)
-  /// after a fullscreen toggle.
+  /// Re-fits the terminal across several frames and pins it to the bottom
+  /// (latest output / prompt). Used after a fullscreen toggle and once after the
+  /// initial mount.
   ///
-  /// On mobile, toggling fullscreen also animates the browser chrome (URL/tool
-  /// bars) in or out, and the viewport keeps changing size for a few hundred ms
-  /// after the class flips. A single immediate fit would measure the pre-
-  /// animation box and leave the terminal/key bar mis-sized, so we force a
-  /// recompute now (next frame) and again after the chrome has settled.
-  void _settleAfterToggle() {
+  /// The flex + `dvh` layout — and, on mobile, the browser chrome animating in
+  /// or out of fullscreen — settles over a few hundred ms, so a single immediate
+  /// fit measures a stale box and leaves the terminal mis-sized (the height bug
+  /// that otherwise only a manual reflow fixed). Forcing a recompute now and
+  /// again after the layout settles makes xterm measure the final container.
+  void _settle() {
     void apply() {
       _fit();
+      // A layout change (fullscreen exit, late flex/dvh settle) can leave the
+      // xterm canvas stale, so force a redraw of the visible rows in normal mode.
+      if (!_fullscreen) {
+        final t = _term;
+        if (t is XtermTerminalView) t.refresh();
+      }
       _term?.scrollToBottom();
     }
 
     // Nudge a layout recompute, then refit on the next frame.
     _scheduleFit();
     web.window.requestAnimationFrame(((double _) => apply()).toJS);
-    // Catch the post-animation viewport size (mobile chrome show/hide).
+    // Catch the post-animation / post-settle box size.
     for (final ms in const [120, 300, 500]) {
       Timer(Duration(milliseconds: ms), apply);
     }
@@ -387,8 +522,30 @@ class SessionViewScreen implements Screen {
   Future<void> _terminate() async {
     if (_finished) return;
     _finished = true;
-    await _shell?.close();
-    ctx.toasts.success('Session terminated.');
+    // Terminate over the control plane (the same path the sessions list uses),
+    // not the in-channel `close()`: a browser WebSocket can drop the ChannelClose
+    // frame if the socket tears down before it flushes, so the node treats it as
+    // a disconnect and *parks* (detaches) the session instead of killing it —
+    // leaving it listed. A kill-by-id reliably terminates the running session.
+    final id = _sessionId;
+    var ok = true;
+    var message = 'Session terminated.';
+    try {
+      if (id != null) {
+        final r = await ctx.service.killSession(nodeId, id);
+        ok = r.ok;
+        if (r.message.isNotEmpty) message = r.message;
+      } else {
+        // No id (e.g. the session never finished opening): fall back to close().
+        await _shell?.close();
+      }
+    } on Object catch (e) {
+      ok = false;
+      message = AppError.from(e).message;
+    }
+    // Stop driving the session locally; the node has (or is) terminating it.
+    await _shell?.dispose();
+    ok ? ctx.toasts.success(message) : ctx.toasts.error(message);
     ctx.router.go('/nodes/${Uri.encodeComponent(nodeId)}/sessions');
   }
 
@@ -427,6 +584,7 @@ class SessionViewScreen implements Screen {
     _detachViewport?.call();
     _resizeObserver?.disconnect();
     _settleTimer?.cancel();
+    _textSizeSub?.cancel();
     // Release the page scroll lock and any fullscreen state on the way out.
     web.document.documentElement?.classList.remove('terminal-active');
     if (_fullscreen) {

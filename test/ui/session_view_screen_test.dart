@@ -2,6 +2,7 @@
 library;
 
 import 'package:omnyshell/omnyshell_client_web.dart';
+import 'package:omnyshell_web/terminal/terminal_dimensions.dart';
 import 'package:omnyshell_web/ui/dom.dart';
 import 'package:omnyshell_web/ui/screens/session_view_screen.dart';
 import 'package:test/test.dart';
@@ -10,6 +11,7 @@ import 'package:web/web.dart' as web;
 import '../support/dom_harness.dart';
 import '../support/fake_hub.dart';
 import '../support/fake_terminal.dart';
+import '../support/sample_data.dart';
 
 void main() {
   setUp(() => web.window.location.hash = '');
@@ -115,6 +117,50 @@ void main() {
     h.dispose();
   });
 
+  test(
+    'terminate kills the session on the node via the control plane',
+    () async {
+      final hub = FakeHub(validToken: 'good', sessions: [sampleSession('s1')]);
+      final h = DomHarness(hub: hub);
+      await h.ctx.auth.login(
+        hub: 'h',
+        principal: 'alice',
+        token: 'good',
+        remember: false,
+      );
+      h.ctx.router.start();
+
+      final screen = SessionViewScreen(
+        h.ctx,
+        'web-01',
+        'new',
+        terminalFactory: (_) => FakeTerminalView(),
+        // The opened port reports the session's full id (as a real one would).
+        opener: (cols, rows) async =>
+            FakeShellSessionPort(id: SessionId('session-s1-full')),
+      );
+      mount(h.container, screen.element);
+      await pump();
+      expect(hub.sessions.any((s) => s.sessionId == 'session-s1-full'), isTrue);
+
+      buttonWithText(h.container, 'Terminate')!.click();
+      await pump();
+
+      // The node received a kill-by-id and the session is no longer listed —
+      // a plain channel close would have left it parked/listed.
+      expect(hub.received.any((m) => m is DetachedSessionKillRequest), isTrue);
+      expect(
+        hub.sessions.any((s) => s.sessionId == 'session-s1-full'),
+        isFalse,
+      );
+      expect(h.ctx.router.current.value.pattern, '/nodes/:id/sessions');
+
+      h.ctx.router.stop();
+      screen.dispose();
+      h.dispose();
+    },
+  );
+
   test('fullscreen toggle flips the root class and dispose clears it', () async {
     final h = await connected();
     final io = FakeShellSessionPort();
@@ -174,6 +220,81 @@ void main() {
     screen.dispose();
     h.dispose();
   });
+
+  test('opens a fresh session with the selected fixed dimensions', () async {
+    final h = await connected();
+    h.ctx.display.setPreset(DimensionPreset.custom);
+    h.ctx.display.setCustom(120, 40);
+    final opened = <(int, int)>[];
+    final screen = SessionViewScreen(
+      h.ctx,
+      'web-01',
+      'new',
+      terminalFactory: (_) => FakeTerminalView(cols: 90, rows: 30),
+      opener: (cols, rows) async {
+        opened.add((cols, rows));
+        return FakeShellSessionPort();
+      },
+    );
+    mount(h.container, screen.element);
+    await pump();
+
+    expect(opened, contains((120, 40)));
+
+    screen.dispose();
+    h.dispose();
+  });
+
+  test('standard preset opens at 80x24', () async {
+    final h = await connected();
+    h.ctx.display.setPreset(DimensionPreset.standard);
+    final opened = <(int, int)>[];
+    final screen = SessionViewScreen(
+      h.ctx,
+      'web-01',
+      'new',
+      terminalFactory: (_) => FakeTerminalView(cols: 90, rows: 30),
+      opener: (cols, rows) async {
+        opened.add((cols, rows));
+        return FakeShellSessionPort();
+      },
+    );
+    mount(h.container, screen.element);
+    await pump();
+
+    expect(opened, contains((80, 24)));
+
+    screen.dispose();
+    h.dispose();
+  });
+
+  test(
+    'auto-fit uses the terminal size; a resumed session ignores the preset',
+    () async {
+      final h = await connected();
+      // Even with a fixed preset set, resuming (sessionRef != 'new') must use the
+      // terminal's own size — the detached PTY can't be resized.
+      h.ctx.display.setPreset(DimensionPreset.standard);
+      final opened = <(int, int)>[];
+      final screen = SessionViewScreen(
+        h.ctx,
+        'web-01',
+        'abcd',
+        terminalFactory: (_) => FakeTerminalView(cols: 90, rows: 30),
+        opener: (cols, rows) async {
+          opened.add((cols, rows));
+          return FakeShellSessionPort();
+        },
+      );
+      mount(h.container, screen.element);
+      await pump();
+
+      expect(opened, contains((90, 30)));
+
+      screen.dispose();
+      h.dispose();
+    },
+  );
 
   test('a failed open shows an error banner', () async {
     final h = await connected();

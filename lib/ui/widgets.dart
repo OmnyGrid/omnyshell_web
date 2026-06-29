@@ -100,6 +100,46 @@ web.HTMLInputElement input({
   return (root: root, box: box);
 }
 
+/// A radio-button group. Each option is a `(value, label)` pair; [selected] is
+/// the initially-checked value and [onChange] fires with the newly-picked value.
+/// Set [inline] to lay the options out in a row (e.g. a segmented control).
+web.HTMLElement radioGroup({
+  required String name,
+  required List<({String value, String label})> options,
+  required String selected,
+  required void Function(String value) onChange,
+  bool inline = false,
+}) {
+  final rows = <web.HTMLElement>[];
+  for (final o in options) {
+    final box = el('input', id: '$name-${o.value}') as web.HTMLInputElement;
+    box.type = 'radio';
+    box.name = name;
+    box.value = o.value;
+    box.checked = o.value == selected;
+    box.addEventListener(
+      'change',
+      (web.Event _) {
+        if (box.checked) onChange(o.value);
+      }.toJS,
+    );
+    rows.add(
+      el(
+        'label',
+        classes: 'radio',
+        attrs: {'for': box.id},
+        children: [box, textNode(o.label)],
+      ),
+    );
+  }
+  return el(
+    'div',
+    classes: inline ? 'radio-group inline' : 'radio-group',
+    role: 'radiogroup',
+    children: rows,
+  );
+}
+
 /// An error banner rendering [error]'s message and optional recovery hint.
 web.HTMLElement errorBanner(AppError error) => el(
   'div',
