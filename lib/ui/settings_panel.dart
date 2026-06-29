@@ -56,6 +56,7 @@ void showSettingsPanel(AppContext ctx) {
 
   final dimensions = radioGroup(
     name: 'term-dim',
+    ariaLabel: 'Terminal size',
     selected: display.preset.value.name,
     options: [
       (value: DimensionPreset.autoFit.name, label: 'Auto-fit (current screen)'),
@@ -79,6 +80,7 @@ void showSettingsPanel(AppContext ctx) {
 
   final textSize = radioGroup(
     name: 'term-text',
+    ariaLabel: 'Text size',
     selected: display.textSize.value.name,
     inline: true,
     options: [

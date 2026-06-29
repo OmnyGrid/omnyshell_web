@@ -48,7 +48,8 @@ web.HTMLElement field(String label, web.HTMLElement input, {String? hint}) =>
       ],
     );
 
-/// A text/password/url input. Returns the element so callers can read `.value`.
+/// A text/password/url/number input. Returns the element so callers can read
+/// `.value`.
 web.HTMLInputElement input({
   required String id,
   String type = 'text',
@@ -102,13 +103,15 @@ web.HTMLInputElement input({
 
 /// A radio-button group. Each option is a `(value, label)` pair; [selected] is
 /// the initially-checked value and [onChange] fires with the newly-picked value.
-/// Set [inline] to lay the options out in a row (e.g. a segmented control).
+/// Set [inline] to lay the options out in a row (e.g. a segmented control), and
+/// [ariaLabel] to name the group for assistive tech.
 web.HTMLElement radioGroup({
   required String name,
   required List<({String value, String label})> options,
   required String selected,
   required void Function(String value) onChange,
   bool inline = false,
+  String? ariaLabel,
 }) {
   final rows = <web.HTMLElement>[];
   for (final o in options) {
@@ -136,6 +139,7 @@ web.HTMLElement radioGroup({
     'div',
     classes: inline ? 'radio-group inline' : 'radio-group',
     role: 'radiogroup',
+    ariaLabel: ariaLabel,
     children: rows,
   );
 }

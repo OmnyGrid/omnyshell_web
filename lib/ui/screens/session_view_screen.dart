@@ -65,6 +65,7 @@ class SessionViewScreen implements Screen {
   /// The opened session's id, for the control-plane terminate (kill).
   String? _sessionId;
   bool _finished = false;
+  bool _disposed = false;
   bool _fullscreen = false;
   void Function()? _detachResize;
   void Function()? _detachOrientation;
@@ -203,6 +204,13 @@ class SessionViewScreen implements Screen {
 
     try {
       final session = await opener(cols, rows);
+      // The screen can be disposed (navigated away) while the open is in flight;
+      // don't wire a dead screen. Detach the just-opened session so it stays
+      // resumable rather than leaking as an orphaned, still-listed session.
+      if (_disposed) {
+        unawaited(session.detach());
+        return;
+      }
       // Remember the session id for a reliable control-plane terminate (see
       // [_terminate]); it's set once the node confirms the session is open.
       _sessionId = session.id?.value;
@@ -300,7 +308,8 @@ class SessionViewScreen implements Screen {
       });
       // Re-apply the font live when the text-size preference changes (the
       // dimension preset only affects the *next* session, so it isn't watched).
-      // Skip the immediate replay `listen` fires — the font is already applied.
+      // Subscribe to `.stream` (not `Observable.listen`) so there's no immediate
+      // replay — the font is already applied above.
       _textSizeSub = ctx.display.textSize.stream.listen((_) => _scheduleFit());
       // The flex/dvh layout settles over a few frames after mount; re-fit across
       // them so xterm measures the final container height (rather than a stale
@@ -315,18 +324,15 @@ class SessionViewScreen implements Screen {
 
   /// Refits the xterm terminal to its container (after a window resize or a
   /// fullscreen toggle changes the available geometry).
+  ///
+  /// `_applyFont` handles both modes: in auto-fit it sets the (text-size-adjusted)
+  /// font and lets the addon re-derive cols/rows; in fixed mode it rescales the
+  /// font and re-pins the cols/rows. Routing both through it keeps the live
+  /// text-size change working in auto-fit too.
   void _fit() {
+    if (_disposed) return;
     _applyHostHeight();
-    final t = _term;
-    if (t is! XtermTerminalView) return;
-    if (_fixedDims == null) {
-      // Auto-fit: cols/rows track the container (the original behavior).
-      t.fit();
-    } else {
-      // Fixed mode: rescale the font only — `_applyFont` re-pins the (unchanged)
-      // size, a no-op in xterm, so no resize fires and the PTY stays constant.
-      _applyFont();
-    }
+    _applyFont();
   }
 
   /// Applies the resolved terminal font size and scales the key bar to match.
@@ -486,6 +492,7 @@ class SessionViewScreen implements Screen {
   /// again after the layout settles makes xterm measure the final container.
   void _settle() {
     void apply() {
+      if (_disposed) return;
       _fit();
       // A layout change (fullscreen exit, late flex/dvh settle) can leave the
       // xterm canvas stale, so force a redraw of the visible rows in normal mode.
@@ -579,6 +586,7 @@ class SessionViewScreen implements Screen {
 
   @override
   void dispose() {
+    _disposed = true;
     _detachResize?.call();
     _detachOrientation?.call();
     _detachViewport?.call();
@@ -597,6 +605,10 @@ class SessionViewScreen implements Screen {
     } else {
       unawaited(_shell?.dispose());
     }
-    _term?.dispose();
+    // Null the terminal so any late `_settle` timer/rAF callback that slips
+    // through becomes a no-op rather than touching a disposed terminal.
+    final term = _term;
+    _term = null;
+    term?.dispose();
   }
 }

@@ -108,8 +108,11 @@ const int kMaxFontPx = 40;
   OrientationBox box, {
   int fontPx = kRefFontPx,
 }) {
-  final cellWidth = fontPx * kCellWidthRatio;
-  final cellHeight = fontPx * kCellHeightRatio;
+  // Guard against a non-positive font: a zero cell size divides to Infinity,
+  // whose .floor() throws. Fall back to the reference size.
+  final f = fontPx < 1 ? kRefFontPx : fontPx;
+  final cellWidth = f * kCellWidthRatio;
+  final cellHeight = f * kCellHeightRatio;
   final cols = ((box.width - kHorizontalChrome) / cellWidth).floor().clamp(
     kMinCols,
     kMaxCols,

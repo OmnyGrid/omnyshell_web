@@ -1,6 +1,8 @@
 @TestOn('browser')
 library;
 
+import 'dart:async';
+
 import 'package:omnyshell/omnyshell_client_web.dart';
 import 'package:omnyshell_web/terminal/terminal_dimensions.dart';
 import 'package:omnyshell_web/ui/dom.dart';
@@ -160,6 +162,31 @@ void main() {
       h.dispose();
     },
   );
+
+  test('disposing while the session is opening detaches the orphan', () async {
+    final h = await connected();
+    final io = FakeShellSessionPort();
+    final gate = Completer<ShellSessionPort>();
+    final screen = SessionViewScreen(
+      h.ctx,
+      'web-01',
+      'new',
+      terminalFactory: (_) => FakeTerminalView(),
+      // Hold the open in flight until we release it after disposing.
+      opener: (cols, rows) => gate.future,
+    );
+    mount(h.container, screen.element);
+    await pump();
+
+    // Navigate away (dispose) before the open completes, then complete it.
+    screen.dispose();
+    gate.complete(io);
+    await pump();
+
+    // The orphaned session is detached (kept resumable), not left wired up.
+    expect(io.detached, isTrue);
+    h.dispose();
+  });
 
   test('fullscreen toggle flips the root class and dispose clears it', () async {
     final h = await connected();

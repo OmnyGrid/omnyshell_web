@@ -72,15 +72,16 @@ class XtermTerminalView implements TerminalView {
   /// [resize] do — which is exactly what a fixed-dimension session needs.
   void setFontSize(int px) => _term.options['fontSize'] = px.toJS;
 
-  /// The current rendered font size in CSS pixels (defaults to 13).
-  int get fontSize {
-    final v = _term.options['fontSize'];
-    return v == null ? 13 : (v as JSNumber).toDartInt;
-  }
-
   /// Pins the terminal to an explicit [cols]×[rows] (no-op in xterm when
-  /// unchanged, so it won't spuriously fire a resize event).
-  void resize(int cols, int rows) => _term.resize(cols, rows);
+  /// unchanged, so it won't spuriously fire a resize event). Guarded like the
+  /// other JS calls in case it lands on a not-yet-ready or disposed terminal.
+  void resize(int cols, int rows) {
+    try {
+      _term.resize(cols, rows);
+    } on Object {
+      // Terminal not ready (or already disposed); a later fit will reconcile.
+    }
+  }
 
   /// Forces a redraw of every visible row (the canvas can go stale after a
   /// layout change such as exiting fullscreen).

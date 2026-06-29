@@ -15,6 +15,7 @@
 
 ### Changed
 
+- Bumped the `omnyshell` dependency to ^1.34.0.
 - The terminal host is now pinned to a definite height equal to the available
   space, so it reliably shrinks as well as grows with the window (previously a
   too-tall canvas — e.g. after exiting fullscreen — could not shrink back).
