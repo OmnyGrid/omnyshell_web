@@ -1,3 +1,11 @@
+## 1.4.1
+
+### Fixed
+
+- The login footer showed the wrong Web Client version (`1.3.0`) in the 1.4.0
+  release: the hardcoded `webClientVersion` constant wasn't bumped alongside
+  `pubspec.yaml`. Now reports the correct version.
+
 ## 1.4.0
 
 ### Added
