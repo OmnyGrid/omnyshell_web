@@ -2,14 +2,14 @@ name: omnyshell_web
 description: >-
   Browser-only client for the OmnyShell ecosystem — connect to a Hub, discover
   nodes, and manage interactive sessions. Installable PWA.
-version: 1.5.2
+version: 1.6.0
 # repository: https://github.com/my_org/my_repo
 
 environment:
   sdk: ^3.12.2
 
 dependencies:
-  omnyshell: ^1.37.0
+  omnyshell: ^1.38.0
   web: ^1.1.1
 
 dev_dependencies:
