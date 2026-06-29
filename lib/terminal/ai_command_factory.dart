@@ -32,7 +32,10 @@ Future<void> registerAiCommand({
       return;
     }
 
-    final hub = await service.fetchHubAiConfig();
+    // Don't let a silent/slow Hub stall session open; fall back to the stub.
+    final hub = await service.fetchHubAiConfig().timeout(
+      const Duration(seconds: 8),
+    );
     final providerToken = hub.provider;
     if (!hub.available || providerToken == null) {
       registry.register(AiSetupCommand(openSettings));
