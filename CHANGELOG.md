@@ -1,3 +1,17 @@
+## 1.6.0
+
+### Added
+
+- Bumped the `omnyshell` dependency to ^1.38.0, which improves the `:ai` agent in
+  the web client:
+  - A magenta divider (`╌`) is drawn just before a presented plan, separating it
+    from the preceding investigation output so the "investigating → here is the
+    plan" transition reads at a glance.
+  - After the final answer the agent asks whether to keep chatting or end. Typing
+    a message continues the conversation in the **same context** (a fresh step
+    budget is granted and the in-flight plan state resets); pressing Enter ends
+    the agent.
+
 ## 1.5.2
 
 ### Fixed
