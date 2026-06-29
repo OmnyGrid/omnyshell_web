@@ -1,3 +1,13 @@
+## 1.5.1
+
+### Fixed
+
+- The `:ai` agent now runs its commands in the **live PTY session** (POSIX
+  shells), matching the CLI, so interactive prompts work — e.g. `sudo` can ask
+  for a password and the user types it directly in the terminal. Previously the
+  web agent used a one-off `exec` with no TTY, so `sudo` failed with "a terminal
+  is required to read the password". Non-POSIX shells still fall back to `exec`.
+
 ## 1.5.0
 
 ### Added

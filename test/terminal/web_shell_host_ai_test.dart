@@ -15,6 +15,7 @@ import 'package:omnyshell/omnyshell_client_web.dart'
         NodeId,
         PlatformInfo,
         SessionId,
+        ShellFamily,
         TokenCredentialProvider;
 import 'package:omnyshell_web/terminal/web_shell_host.dart';
 import 'package:test/test.dart';
@@ -60,6 +61,23 @@ class _WriterCommand extends LocalCommand {
   @override
   Future<void> run(LocalCommandContext context, List<String> args) async =>
       context.writeLine(_text);
+}
+
+/// Records whether the context offered a live-session runner (so the `:ai` agent
+/// runs sudo-capable commands in the PTY rather than via one-off exec).
+class _RunnerProbe extends LocalCommand {
+  bool? hasSessionRunner;
+
+  @override
+  String get name => 'runner';
+
+  @override
+  String get description => 'test runner probe';
+
+  @override
+  Future<void> run(LocalCommandContext context, List<String> args) async {
+    hasSessionRunner = context.runInSession != null;
+  }
 }
 
 void main() {
@@ -153,4 +171,44 @@ void main() {
     expect(probe.answer, 'q');
     expect(shown(), contains('^C'));
   });
+
+  test(
+    'POSIX session wires runInSession (so sudo can prompt in the PTY)',
+    () async {
+      final probe = _RunnerProbe();
+      final registry = LocalCommandRegistry()..register(probe);
+      buildWith(registry); // default fake port is POSIX
+
+      term.emitInput(':runner\r');
+      await pumpMs();
+
+      expect(probe.hasSessionRunner, isTrue);
+    },
+  );
+
+  test(
+    'non-POSIX session leaves runInSession null (falls back to exec)',
+    () async {
+      final probe = _RunnerProbe();
+      final registry = LocalCommandRegistry()..register(probe);
+      final cmdPort = FakeShellSessionPort(
+        id: SessionId('testnonce'),
+        shellFamily: ShellFamily.cmd,
+      );
+      WebShellHost(
+        term: term,
+        session: cmdPort,
+        principal: 'alice',
+        nodeId: 'web-01',
+        commands: registry,
+        client: client(),
+        nodeInfo: node,
+      );
+
+      term.emitInput(':runner\r');
+      await pumpMs();
+
+      expect(probe.hasSessionRunner, isFalse);
+    },
+  );
 }

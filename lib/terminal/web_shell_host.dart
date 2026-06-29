@@ -13,6 +13,8 @@ import 'package:omnyshell/omnyshell_client_web.dart'
         NodeDescriptor,
         Principal,
         RemoteSession,
+        SessionCommandResult,
+        ShellFamily,
         HistoryCursor,
         ShellPromptState,
         ShellSessionPort;
@@ -358,6 +360,20 @@ class WebShellHost implements TerminalKeys {
     return '─' * (cols > 0 ? cols : 80);
   }
 
+  /// Runs [command] in the **live interactive PTY session** (shared cwd/env and
+  /// cached sudo credentials) and returns its captured output + exit code, so the
+  /// `:ai` agent's commands behave like the user typed them — output streams to
+  /// the terminal and the user can answer interactive prompts (e.g. a sudo
+  /// password) in passthrough. Wired only for POSIX shells (the marker carries
+  /// the exit code there); other families fall back to a one-off client `exec`.
+  Future<SessionCommandResult> _runInSession(String command) async {
+    final r = await _controller.runAgentCommand(command);
+    return SessionCommandResult(
+      exitCode: r.exitCode,
+      output: utf8.decode(r.output, allowMalformed: true),
+    );
+  }
+
   /// Writes [text] as a line, normalizing bare LFs to CRLF and appending one.
   ///
   /// The remote shell's own output is already CRLF (the node's PTY applies
@@ -394,12 +410,15 @@ class WebShellHost implements TerminalKeys {
       startedAt: _startedAt,
       writeLine: _writeLine,
       currentRemoteCwd: () => _lastPrompt.cwd,
-      // Interactive prompts + Ctrl-C abort for the `:ai` agent. `runInSession`
-      // stays null (the browser shell is a pipe), so the agent runs its commands
-      // via the client exec path.
+      // Interactive prompts + Ctrl-C abort for the `:ai` agent.
       readLine: _readLine,
       onInterruptRequest: (handler) => _interruptHandler = handler,
       horizontalRule: _horizontalRule,
+      // Run the agent's commands in the live PTY session so sudo (and other
+      // interactive prompts) work; POSIX only — others fall back to exec.
+      runInSession: _controller.shellFamily == ShellFamily.posix
+          ? _runInSession
+          : null,
     );
     try {
       await commands.handle(line, context);
