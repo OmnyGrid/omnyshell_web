@@ -1,3 +1,24 @@
+## 1.5.0
+
+### Added
+
+- AI agent in the browser: the `:ai` command now works in the web client. A
+  browser can't call AI provider APIs directly (CORS), so provider HTTPS calls are
+  routed through the Hub; the agent then investigates the node, plans, and runs
+  commands toward a natural-language goal — the same three modes as the CLI
+  (`standard`, `plan`, `auto`). Requires omnyshell ^1.35.0 (Hub AI proxy +
+  `HubHttpClient`).
+- AI settings in the global Settings panel (⚙): use the Hub's default
+  provider/model (the API key stays on the Hub and is injected when proxying) or
+  bring your own provider/model + API key (stored in this browser only, forwarded
+  via the Hub). Also sets the default agent mode and reply language.
+- Interactive agent prompts in the terminal — confirmations are read inline, and
+  Ctrl-C aborts a running `:ai` agent.
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.35.0.
+
 ## 1.4.1
 
 ### Fixed

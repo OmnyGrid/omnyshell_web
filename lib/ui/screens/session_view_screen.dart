@@ -12,6 +12,7 @@ import 'package:web/web.dart' as web;
 
 import '../../app/app_context.dart';
 import '../../core/app_error.dart';
+import '../../terminal/ai_command_factory.dart';
 import '../../terminal/command_history.dart';
 import '../../terminal/terminal_accessory.dart';
 import '../../terminal/terminal_dimensions.dart';
@@ -19,7 +20,7 @@ import '../../terminal/terminal_view.dart';
 import '../../terminal/web_shell_host.dart';
 import '../../terminal/xterm_terminal_view.dart';
 import '../dom.dart';
-import '../settings_panel.dart' show deviceMetrics;
+import '../settings_panel.dart' show deviceMetrics, showSettingsPanel;
 import '../widgets.dart';
 
 /// The interactive terminal view: opens (or resumes) a shell session on a node
@@ -219,12 +220,25 @@ class SessionViewScreen implements Screen {
       unawaited(_loadNode());
       final client = ctx.service.client;
       final dialect = ShellDialect.forFamily(session.shellFamily);
+      // Build the local-command set and register `:ai` (routes provider calls
+      // through the Hub). Best-effort — failures register a setup stub instead.
+      final commands = LocalCommandRegistry.withDefaults();
+      await registerAiCommand(
+        registry: commands,
+        settings: ctx.settings,
+        service: ctx.service,
+        openSettings: () => showSettingsPanel(ctx),
+      );
+      if (_disposed) {
+        unawaited(session.detach());
+        return;
+      }
       final shell = _shell = WebShellHost(
         term: term,
         session: session,
         principal: ctx.service.principal?.id.value ?? 'user',
         nodeId: nodeId,
-        commands: LocalCommandRegistry.withDefaults(),
+        commands: commands,
         client: client,
         // TAB completion: run the shell's completion command on the node in the
         // session's cwd, mirroring the CLI's connect loop.

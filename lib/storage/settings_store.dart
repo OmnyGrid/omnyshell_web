@@ -18,6 +18,12 @@ class SettingsStore {
   static const String _termColsKey = '${_prefix}terminal.customCols';
   static const String _termRowsKey = '${_prefix}terminal.customRows';
   static const String _termTextKey = '${_prefix}terminal.textSize';
+  static const String _aiUseHubKey = '${_prefix}ai.useHubDefault';
+  static const String _aiProviderKey = '${_prefix}ai.provider';
+  static const String _aiModelKey = '${_prefix}ai.model';
+  static const String _aiApiKeyKey = '${_prefix}ai.apiKey';
+  static const String _aiModeKey = '${_prefix}ai.mode';
+  static const String _aiLanguageKey = '${_prefix}ai.language';
 
   final KeyValueStore _kv;
 
@@ -79,4 +85,46 @@ class SettingsStore {
   String? get terminalTextSize => _kv.read(_termTextKey);
   set terminalTextSize(String? value) =>
       value == null ? _kv.remove(_termTextKey) : _kv.write(_termTextKey, value);
+
+  // --- AI settings ----------------------------------------------------------
+  //
+  // Whether to use the Hub's default provider/model/key (the key stays on the
+  // Hub) or a custom provider/model with the user's own key. The key, like the
+  // bearer token, lives in localStorage and is exposed to any script on the
+  // page — prefer the Hub default unless you accept that trade-off.
+
+  /// Whether to use the Hub's default AI provider/model (key injected Hub-side).
+  /// Defaults to `true` when never set.
+  bool get aiUseHubDefault => _kv.read(_aiUseHubKey) != 'false';
+  set aiUseHubDefault(bool value) =>
+      _kv.write(_aiUseHubKey, value ? 'true' : 'false');
+
+  /// The user's custom AI provider token (`anthropic`/`openai`/`gemini`), or
+  /// `null` to fall back to the Hub default.
+  String? get aiProvider => _kv.read(_aiProviderKey);
+  set aiProvider(String? value) => value == null
+      ? _kv.remove(_aiProviderKey)
+      : _kv.write(_aiProviderKey, value);
+
+  /// The user's custom model id, or `null`.
+  String? get aiModel => _kv.read(_aiModelKey);
+  set aiModel(String? value) =>
+      value == null ? _kv.remove(_aiModelKey) : _kv.write(_aiModelKey, value);
+
+  /// The user's own API key, or `null` to use the Hub's key.
+  String? get aiApiKey => _kv.read(_aiApiKeyKey);
+  set aiApiKey(String? value) => value == null || value.isEmpty
+      ? _kv.remove(_aiApiKeyKey)
+      : _kv.write(_aiApiKeyKey, value);
+
+  /// The default agent mode token (`standard`/`plan`/`auto`), or `null`.
+  String? get aiMode => _kv.read(_aiModeKey);
+  set aiMode(String? value) =>
+      value == null ? _kv.remove(_aiModeKey) : _kv.write(_aiModeKey, value);
+
+  /// The reply-language preference, or `null` for the model default.
+  String? get aiLanguage => _kv.read(_aiLanguageKey);
+  set aiLanguage(String? value) => value == null || value.isEmpty
+      ? _kv.remove(_aiLanguageKey)
+      : _kv.write(_aiLanguageKey, value);
 }

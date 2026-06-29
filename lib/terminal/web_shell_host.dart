@@ -76,6 +76,14 @@ class WebShellHost implements TerminalKeys {
   bool _passthrough = false;
   bool _ctrlArmed = false;
   bool _ended = false;
+
+  /// When set, the next committed line is delivered here (e.g. an `:ai` confirm
+  /// prompt) instead of being dispatched as a command. See [_readLine].
+  Completer<String>? _lineSink;
+
+  /// Registered by a running local command (the `:ai` agent) so Ctrl-C requests
+  /// an abort instead of just clearing the line; `null` when none is active.
+  void Function()? _interruptHandler;
   final DateTime _startedAt;
   ShellPromptState _lastPrompt = const ShellPromptState();
 
@@ -181,8 +189,8 @@ class WebShellHost implements TerminalKeys {
           if (consumed == 0) return; // unknown/incomplete: drop the rest
           i += consumed - 1; // the for-loop's i++ advances past the last byte
           continue;
-        case 0x09: // Tab: remote completion (when a completer is wired).
-          if (_onComplete != null) unawaited(_complete());
+        case 0x09: // Tab: remote completion (suppressed while reading a line).
+          if (_onComplete != null && _lineSink == null) unawaited(_complete());
           return;
         case 0x0d: // Enter (CR)
         case 0x0a: // Enter (LF)
@@ -195,7 +203,25 @@ class WebShellHost implements TerminalKeys {
             _term.write(const [0x08, 0x20, 0x08]);
             _histCursor?.reset();
           }
-        case 0x03: // Ctrl-C at idle: discard the line, repaint the prompt.
+        case 0x03: // Ctrl-C
+          // While reading a line for the agent, abort that prompt by answering
+          // `q` (its handlers treat it as an abort); the agent unwinds cleanly.
+          final sink = _lineSink;
+          if (sink != null) {
+            _lineSink = null;
+            _line.clear();
+            _term.write(utf8.encode('^C\r\n'));
+            if (!sink.isCompleted) sink.complete('q');
+            return;
+          }
+          // While a local command (the agent) runs, request an abort.
+          if (_interruptHandler != null) {
+            _line.clear();
+            _term.write(utf8.encode('^C\r\n'));
+            _interruptHandler!.call();
+            return;
+          }
+          // At idle: discard the line, repaint the prompt.
           _term.write(utf8.encode('^C\r\n'));
           _line.clear();
           _histCursor?.reset();
@@ -276,6 +302,17 @@ class WebShellHost implements TerminalKeys {
   void _commit() {
     final line = utf8.decode(_line, allowMalformed: true);
     _line.clear();
+    // A local command (the `:ai` agent) is awaiting a line via [_readLine]:
+    // deliver it there instead of dispatching, and don't record it in history
+    // (answers/keys don't belong there).
+    final sink = _lineSink;
+    if (sink != null) {
+      _lineSink = null;
+      _histCursor?.reset();
+      _term.write(utf8.encode('\r\n'));
+      if (!sink.isCompleted) sink.complete(line);
+      return;
+    }
     // Record the command and reset history browsing, mirroring the CLI's
     // connect loop (blank lines and consecutive duplicates are skipped by add).
     _history?.add(line);
@@ -297,6 +334,28 @@ class WebShellHost implements TerminalKeys {
   void _repaintPrompt() {
     _line.clear();
     _term.write(utf8.encode(_prompt(_lastPrompt)));
+  }
+
+  /// Writes [prompt] and resolves with the next line the user enters — the
+  /// browser counterpart to the CLI's readLine, used by the `:ai` agent for
+  /// confirmations. The next [_commit] (Enter) or Ctrl-C completes the future.
+  Future<String> _readLine(String prompt) {
+    // A prior reader should always have completed before another starts; guard
+    // anyway so a stray pending future never strands the agent.
+    final pending = _lineSink;
+    if (pending != null && !pending.isCompleted) pending.complete('');
+    _line.clear();
+    _histCursor?.reset();
+    _term.write(utf8.encode(prompt));
+    final completer = Completer<String>();
+    _lineSink = completer;
+    return completer.future;
+  }
+
+  /// A horizontal rule sized to the terminal, for commands that frame output.
+  String _horizontalRule() {
+    final cols = _term.size.cols;
+    return '─' * (cols > 0 ? cols : 80);
   }
 
   /// Runs a local `:` command and repaints the prompt (or leaves the session on
@@ -322,11 +381,25 @@ class WebShellHost implements TerminalKeys {
       startedAt: _startedAt,
       writeLine: (text) => _term.write(utf8.encode('$text\r\n')),
       currentRemoteCwd: () => _lastPrompt.cwd,
+      // Interactive prompts + Ctrl-C abort for the `:ai` agent. `runInSession`
+      // stays null (the browser shell is a pipe), so the agent runs its commands
+      // via the client exec path.
+      readLine: _readLine,
+      onInterruptRequest: (handler) => _interruptHandler = handler,
+      horizontalRule: _horizontalRule,
     );
     try {
       await commands.handle(line, context);
     } on Object catch (e) {
       _term.write(utf8.encode('$e\r\n'));
+    } finally {
+      // Defensively drop any prompt/interrupt state the command left behind.
+      _interruptHandler = null;
+      final sink = _lineSink;
+      if (sink != null) {
+        _lineSink = null;
+        if (!sink.isCompleted) sink.complete('');
+      }
     }
     if (context.exitRequested) {
       _ended = true;
