@@ -6,8 +6,10 @@
   browser can't call AI provider APIs directly (CORS), so provider HTTPS calls are
   routed through the Hub; the agent then investigates the node, plans, and runs
   commands toward a natural-language goal — the same three modes as the CLI
-  (`standard`, `plan`, `auto`). Requires omnyshell ^1.35.0 (Hub AI proxy +
-  `HubHttpClient`).
+  (`standard`, `plan`, `auto`). Requires omnyshell ^1.36.0 (Hub AI proxy +
+  `HubHttpClient`); to use the "Hub default" path the Hub must be started with AI
+  credentials (`omnyshell hub start --ai-config <path>`, or `~/.omnyshell/ai.yaml`
+  / `*_API_KEY` env), otherwise bring your own key in Settings.
 - AI settings in the global Settings panel (⚙): use the Hub's default
   provider/model (the API key stays on the Hub and is injected when proxying) or
   bring your own provider/model + API key (stored in this browser only, forwarded
@@ -17,7 +19,7 @@
 
 ### Changed
 
-- Bumped the `omnyshell` dependency to ^1.35.0.
+- Bumped the `omnyshell` dependency to ^1.36.0.
 
 ## 1.4.1
 
