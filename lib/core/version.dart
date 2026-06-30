@@ -6,4 +6,4 @@
 library;
 
 /// This web client's version (matches `pubspec.yaml`).
-const String webClientVersion = '1.8.0';
+const String webClientVersion = '1.8.1';

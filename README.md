@@ -1,10 +1,14 @@
 # OmnyShell Web
 
-A browser-only client for the [OmnyShell](../omnyshell) ecosystem. Connect to a
-Hub, discover nodes, and manage interactive sessions — entirely from the
-browser, with **no custom backend**. All communication is the browser talking
-directly to existing OmnyShell infrastructure over a single WebSocket, using the
-real `omnyshell` package APIs and wire protocol (no duplicated business logic).
+A browser-only client for the
+[OmnyShell](https://github.com/OmnyGrid/omnyshell) ecosystem. Connect to a Hub,
+discover nodes, and manage interactive sessions — entirely from the browser, with
+**no custom backend**. All communication is the browser talking directly to
+existing OmnyShell infrastructure over a single WebSocket, using the real
+`omnyshell` package APIs and wire protocol (no duplicated business logic).
+
+**Live app:** <https://omnygrid.github.io/omnyshell_web/> — installable as a PWA
+(see [Install as an app](#install-as-an-app-pwa)).
 
 Built as a plain Dart→JS web app (`package:web` + `build_web_compilers`), not
 Flutter.
@@ -18,20 +22,29 @@ Flutter.
 - **Sessions** — list active/detached sessions, view status, peek a screen
   snapshot, detach, resume, and kill. Open a fresh interactive shell.
 - **Interactive terminal** — a real [xterm.js](https://xtermjs.org) terminal
-  wired to the remote session (stdin/stdout/stderr, resize, flow control).
+  wired to the remote session (stdin/stdout/stderr, resize, flow control), with
+  selectable terminal dimensions and adjustable text/key sizing.
+- **AI agent (`:ai`)** — drive the node in natural language from the terminal.
+  Configure a provider/model and API key in Settings, or use the Hub's default
+  provider (the key stays on the Hub). Commands run in the live session, gated by
+  the same `command_shield` safety checks as the CLI, and each interaction ends
+  with a token-usage stats line (tokens, tok/s, requests, duration).
 - **Theming** — light, dark, and system themes with a persistent selector and
   no flash of the wrong palette on load.
 - **Resilience** — explicit loading/empty/error states everywhere, dropped-
   connection detection, and one-click reconnect.
 
 These map to the `omnyshell` CLI's client commands: `login`/`logout`,
-`nodes list`, `connect`, `sessions list/peek/resume/detach/kill`.
+`nodes list`, `connect`, `sessions list/peek/resume/detach/kill`, and the
+in-session `:ai` agent.
 
 ## Running
 
-This app depends on `omnyshell` via a path override (`../omnyshell`), which has
-been extended with a browser-compatible transport (see
-[ARCHITECTURE.md](ARCHITECTURE.md) → *omnyshell browser seam*).
+This app depends on the published `omnyshell` package (from pub.dev), which
+includes a browser-compatible transport (see
+[ARCHITECTURE.md](ARCHITECTURE.md) → *omnyshell browser seam*). To develop
+against a local checkout, drop a git-ignored `pubspec_overrides.yaml` with
+`dependency_overrides: { omnyshell: { path: ../omnyshell } }`.
 
 ```bash
 dart pub get
@@ -65,14 +78,17 @@ this guidance instead of a fake "insecure" toggle.
 
 ## Install as an app (PWA)
 
+The app is live at <https://omnygrid.github.io/omnyshell_web/>.
+
 OmnyShell Web is an installable Progressive Web App on Android and iOS — it adds
 a home-screen icon and launches standalone (no browser chrome), with the app
 shell cached by a service worker so it loads instantly and survives flaky
 networks.
 
-- **Android (Chrome/Edge):** open the site → menu → **Install app** / *Add to
-  Home screen*.
-- **iOS/iPadOS (Safari):** open the site → **Share** → **Add to Home Screen**.
+- **Android (Chrome/Edge):** open <https://omnygrid.github.io/omnyshell_web/> →
+  menu → **Install app** / *Add to Home screen*.
+- **iOS/iPadOS (Safari):** open <https://omnygrid.github.io/omnyshell_web/> →
+  **Share** → **Add to Home Screen**.
 
 Installability requires the app to be served over **HTTPS** (or `localhost` for
 testing). The status bar and theme colour follow the in-app light/dark theme,
