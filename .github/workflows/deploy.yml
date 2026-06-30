@@ -55,6 +55,15 @@ jobs:
         run: dart pub get
       - name: Build (dart2js, release)
         run: dart run build_runner build --release --output build
+      # dart2js silently skips an entrypoint whose transitive graph imports an
+      # unsupported SDK library, emitting no JS. Never deploy that broken bundle.
+      - name: Verify the dart2js bundle was produced
+        run: |
+          f=build/web/main.dart.js
+          test -f "$f" || { echo "::error::dart2js produced no $f — the entrypoint was silently skipped"; exit 1; }
+          size=$(wc -c < "$f")
+          echo "main.dart.js: $size bytes"
+          [ "$size" -gt 100000 ] || { echo "::error::$f is only $size bytes — suspiciously small for a release build"; exit 1; }
 
       # The strict CSP is injected into the *built* index.html only — not the
       # source — so `webdev serve` (DDC, which needs 'unsafe-eval') keeps working

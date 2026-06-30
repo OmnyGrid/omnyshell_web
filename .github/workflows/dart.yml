@@ -75,3 +75,14 @@ jobs:
         run: dart pub get
       - name: Production build (dart2js, release)
         run: dart run build_runner build --release --output build
+      # dart2js *silently skips* an entrypoint whose transitive imports pull in
+      # an unsupported SDK library (e.g. a dependency leaking dart:io) — the
+      # build "succeeds" but emits no JS. Fail loudly when that happens instead
+      # of shipping a non-functional bundle.
+      - name: Verify the dart2js bundle was produced
+        run: |
+          f=build/web/main.dart.js
+          test -f "$f" || { echo "::error::dart2js produced no $f — the entrypoint was silently skipped (an unsupported SDK import in the transitive graph?)"; exit 1; }
+          size=$(wc -c < "$f")
+          echo "main.dart.js: $size bytes"
+          [ "$size" -gt 100000 ] || { echo "::error::$f is only $size bytes — suspiciously small for a release build"; exit 1; }
