@@ -1,4 +1,19 @@
-## 1.12.0
+## 1.13.0
+
+### Changed
+
+- **The terminal now uses omnyshell's shared `LineEditor`** instead of a
+  hand-rolled, append-only editor, so the browser behaves identically to the
+  CLI. The visible gain is **full mid-line editing**: Left/Right, Home/End (and
+  Ctrl-A/Ctrl-E), and Delete now move and edit within the line rather than only
+  appending at the end. History navigation, TAB completion, the `:ai`
+  confirmation prompts and the `:ide` full-screen takeover are all driven
+  through the same editor.
+- Ctrl-C semantics now match the CLI: at idle it clears the line and interrupts
+  the remote shell; while the `:ai` agent owns the screen it fires the agent's
+  abort and unblocks any pending confirmation; during a `:ide` session or while
+  a remote program owns the screen it is delivered to that program.
+
 
 ### Changed
 

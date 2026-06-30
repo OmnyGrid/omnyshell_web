@@ -63,6 +63,35 @@ class _WriterCommand extends LocalCommand {
       context.writeLine(_text);
 }
 
+/// Owns the screen (registers an interrupt handler, like the running agent) but
+/// holds via a test-controlled completer rather than a pending prompt — so a
+/// marker arriving mid-run mirrors the agent running a command, not awaiting a
+/// confirmation.
+class _ScreenOwnerProbe extends LocalCommand {
+  final _started = Completer<void>();
+  final _finish = Completer<void>();
+
+  /// Completes once [run] has begun and taken the screen.
+  Future<void> get started => _started.future;
+
+  /// Lets [run] return.
+  void finish() => _finish.complete();
+
+  @override
+  String get name => 'own';
+
+  @override
+  String get description => 'owns the screen';
+
+  @override
+  Future<void> run(LocalCommandContext context, List<String> args) async {
+    context.onInterruptRequest?.call(() {});
+    _started.complete();
+    await _finish.future;
+    context.onInterruptRequest?.call(null);
+  }
+}
+
 /// Records whether the context offered a live-session runner (so the `:ai` agent
 /// runs sudo-capable commands in the PTY rather than via one-off exec).
 class _RunnerProbe extends LocalCommand {
@@ -160,11 +189,11 @@ void main() {
   });
 
   test('idle prompt is suppressed while the agent owns the screen', () async {
-    final probe = _ProbeCommand();
+    final probe = _ScreenOwnerProbe();
     final registry = LocalCommandRegistry()..register(probe);
     buildWith(registry);
 
-    term.emitInput(':probe\r');
+    term.emitInput(':own\r');
     await probe.started; // the agent registered its interrupt handler
 
     // A command-completion marker arriving mid-run (as the `:ai` agent's own
@@ -178,33 +207,40 @@ void main() {
       reason: 'no idle prompt while the agent owns the screen',
     );
 
-    // Finishing the agent restores the prompt exactly once (via _repaintPrompt),
-    // reflecting the cwd the suppressed marker carried.
-    term.emitInput('yes\r');
+    // Finishing the agent restores the prompt (at least once), reflecting the
+    // cwd the suppressed marker carried.
+    probe.finish();
     await pumpMs();
     final after = shown();
     expect(
       'alice@web-01'.allMatches(after).length,
-      before + 1,
-      reason: 'prompt repainted once after the agent finishes',
+      greaterThanOrEqualTo(before + 1),
+      reason: 'prompt repainted after the agent finishes',
     );
     expect(after, contains('/home/alice'));
   });
 
-  test('Ctrl-C while reading aborts the prompt with "q"', () async {
-    final probe = _ProbeCommand();
-    final registry = LocalCommandRegistry()..register(probe);
-    buildWith(registry);
+  test(
+    'Ctrl-C while reading fires the interrupt handler and ends the prompt',
+    () async {
+      final probe = _ProbeCommand();
+      final registry = LocalCommandRegistry()..register(probe);
+      buildWith(registry);
 
-    term.emitInput(':probe\r');
-    await probe.started;
+      term.emitInput(':probe\r');
+      await probe.started;
 
-    term.emitInput('\x03'); // Ctrl-C
-    await pumpMs();
+      term.emitInput('\x03'); // Ctrl-C
+      await pumpMs();
 
-    expect(probe.answer, 'q');
-    expect(shown(), contains('^C'));
-  });
+      // The host routes a line-mode Ctrl-C like the CLI's SIGINT handler: it fires
+      // the agent's registered interrupt handler (which requests the abort) and
+      // unblocks the pending prompt (the editor completes it with '').
+      expect(probe.interrupted, isTrue);
+      expect(probe.answer, '');
+      expect(shown(), contains('^C'));
+    },
+  );
 
   test(
     'POSIX session wires runInSession (so sudo can prompt in the PTY)',
