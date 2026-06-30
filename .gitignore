@@ -5,3 +5,6 @@
 .DS_Store
 *.exe
 
+# Local-only dependency overrides (e.g. path: ../omnyshell while unpublished).
+pubspec_overrides.yaml
+
