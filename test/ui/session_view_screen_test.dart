@@ -300,8 +300,8 @@ void main() {
     'auto-fit uses the terminal size; a resumed session ignores the preset',
     () async {
       final h = await connected();
-      // Even with a fixed preset set, resuming (sessionRef != 'new') must use the
-      // terminal's own size — the detached PTY can't be resized.
+      // Even with a fixed preset set, resuming (sessionRef != 'new') must open at
+      // the terminal's own (device) size — the node resizes the resumed PTY to it.
       h.ctx.display.setPreset(DimensionPreset.standard);
       final opened = <(int, int)>[];
       final screen = SessionViewScreen(

@@ -175,9 +175,10 @@ class SessionViewScreen implements Screen {
       return;
     }
     _term = term;
-    // Resolve the chosen dimensions only for a *fresh* shell: a resumed session
-    // already has a fixed PTY size on the node that we can't change, so we let
-    // the terminal fit normally and never pin it.
+    // Resolve the chosen dimensions only for a *fresh* shell. A resumed session
+    // fits to this device and is never pinned to a stored preset; the node
+    // resizes the resumed PTY to the size we open with (so a full-screen program
+    // reflows to this device).
     _fixedDims = sessionRef == 'new'
         ? ctx.display.resolveDimensions(deviceMetrics())
         : null;
@@ -197,8 +198,15 @@ class SessionViewScreen implements Screen {
       cols = fixed.cols;
       rows = fixed.rows;
     } else {
-      // Auto-fit: keep the original behavior, honoring a manual text size.
-      if (term is XtermTerminalView) _applyFont();
+      // Auto-fit (resume): fit to the container *before* reading the size, so we
+      // open at the real device geometry instead of xterm's 80×24 default. The
+      // xterm view defers its first fit to later frames (the container isn't
+      // laid out in the tick it's attached), so settle a frame and re-fit here.
+      if (term is XtermTerminalView) {
+        _applyFont();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        term.fit();
+      }
       final size = term.size;
       cols = size.cols > 0 ? size.cols : 80;
       rows = size.rows > 0 ? size.rows : 24;
