@@ -149,10 +149,10 @@ packages:
     dependency: transitive
     description:
       name: command_shield
-      sha256: "2e8f4e0abc9c62e89c1f57fd09adc0e04e5a36802e0b345dcf71997befbff853"
+      sha256: c39f699d55df40e64b17feaa8d58ee6746f6d913e4d12f228c61680a6f1223b7
       url: "https://pub.dev"
     source: hosted
-    version: "1.3.0"
+    version: "1.4.0"
   convert:
     dependency: transitive
     description:
@@ -365,10 +365,10 @@ packages:
     dependency: "direct main"
     description:
       name: omnyshell
-      sha256: "6e807bbcfc1edfbe04b419993697fb35153892b5e623eba8e828f82431abed81"
+      sha256: a59e5f0870e42d5f0ec50c873c756bc51e3442697c846e101db6a90e722bad27
       url: "https://pub.dev"
     source: hosted
-    version: "1.39.0"
+    version: "1.40.0"
   package_config:
     dependency: transitive
     description:

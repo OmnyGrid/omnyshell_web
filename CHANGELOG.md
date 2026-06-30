@@ -1,3 +1,15 @@
+## 1.8.0
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.40.0, which upgrades the `:ai` agent's
+  command shield (`command_shield` ^1.4.0) with a correct bash/POSIX
+  file-descriptor redirection parser. The discard/merge idioms the model
+  routinely emits — `cmd 2>&1`, `cmd >/dev/null 2>&1`, `&>/dev/null` — are now
+  read as a single clean command instead of producing a spurious "Redirection
+  without a target" diagnostic and a phantom invocation, and they no longer
+  over-report a filesystem write.
+
 ## 1.7.0
 
 ### Added
