@@ -1,3 +1,20 @@
+## 1.7.0
+
+### Added
+
+- Bumped the `omnyshell` dependency to ^1.39.0, which adds an AI agent
+  token-usage summary to the web client:
+  - After every `:ai` answer the agent prints a muted (gray) stats line — shown
+    just before the "chat to continue / Enter to end" prompt so the running totals
+    are visible before the interaction ends — e.g. `ai: 12,840 tokens (in 10,210 ·
+    out 2,630 · cached 1,024) · 78 tok/s · 4 requests · 14.6s` — reporting tokens
+    used (input/output, plus prompt-cache hits), the output generation speed
+    (tok/s), the number of model requests, and the wall-clock duration. Totals
+    accumulate across a multi-turn session and the line also shows on abort or a
+    provider error.
+  - Generation speed stays accurate over the Hub proxy: the Hub reports its real
+    upstream request time, so the browser↔Hub round-trip is excluded from tok/s.
+
 ## 1.6.0
 
 ### Added
