@@ -71,9 +71,11 @@ void main() {
 
     term.emitInput('l');
     term.emitInput('s');
+    await pump();
     expect(shown(), contains('ls')); // local echo
 
     term.emitInput('\r');
+    await pump();
     expect(sent(), contains("eval 'ls'"));
   });
 
@@ -106,8 +108,27 @@ void main() {
     term.emitInput('b');
     term.emitInput('\x7f');
     term.emitInput('\r');
+    await pump();
     expect(sent(), contains("eval 'a'"));
     expect(sent(), isNot(contains("eval 'ab'")));
+  });
+
+  test('mid-line editing: Left arrow inserts at the cursor', () async {
+    // The shared LineEditor gives the browser full mid-line editing (the old
+    // hand-rolled host was append-only): typing "ac", moving Left, then "b"
+    // yields "abc".
+    build();
+    port.emit(utf8.encode(markerLine('/home/alice')));
+    await pump();
+    port.stdin.clear();
+
+    term.emitInput('a');
+    term.emitInput('c');
+    term.emitInput('\x1b[D'); // Left
+    term.emitInput('b');
+    term.emitInput('\r');
+    await pump();
+    expect(sent(), contains("eval 'abc'"));
   });
 
   group('command history', () {
@@ -121,6 +142,7 @@ void main() {
       await pump();
 
       term.emitInput('ls\r');
+      await pump();
       expect(history.entries, ['ls']);
       // Let the command finish so the prompt returns before recalling.
       port.emit(utf8.encode(markerLine('/home/alice')));
@@ -128,42 +150,56 @@ void main() {
 
       port.stdin.clear();
       term.emitInput(up); // recall "ls" onto the line
+      await pump();
       term.emitInput('\r'); // commit the recalled command
+      await pump();
       expect(sent(), contains("eval 'ls'"));
     });
 
-    test('Up then Down walks history and restores the in-progress line', () {
-      final history = CommandHistory.inMemory(entries: ['deploy', 'debug']);
-      build(history: history);
+    test(
+      'Up then Down walks history and restores the in-progress line',
+      () async {
+        final history = CommandHistory.inMemory(entries: ['deploy', 'debug']);
+        build(history: history);
 
-      term.emitInput('de'); // an in-progress draft (a prefix of both entries)
-      term.emitInput(up);
-      expect(shown(), contains('debug'));
-      term.emitInput(up);
-      expect(shown(), contains('deploy'));
-      term.emitInput(down);
-      term.emitInput(down); // past the newest match: the draft returns
-      expect(shown().endsWith('de'), isTrue);
-    });
+        term.emitInput('de'); // an in-progress draft (a prefix of both entries)
+        await pump();
+        term.emitInput(up);
+        await pump();
+        expect(shown(), contains('debug'));
+        term.emitInput(up);
+        await pump();
+        expect(shown(), contains('deploy'));
+        term.emitInput(down);
+        await pump();
+        term.emitInput(down); // past the newest match: the draft returns
+        await pump();
+        expect(shown().endsWith('de'), isTrue);
+      },
+    );
 
-    test('a typed prefix restricts which entries Up visits', () {
+    test('a typed prefix restricts which entries Up visits', () async {
       final history = CommandHistory.inMemory(
         entries: ['git status', 'ls', 'git log'],
       );
       build(history: history);
 
       term.emitInput('git');
+      await pump();
       term.emitInput(up);
+      await pump();
       expect(shown(), contains('git log'));
       term.emitInput(up);
+      await pump();
       expect(shown(), contains('git status'));
     });
 
-    test('arrow keys are a safe no-op when history is disabled', () {
+    test('arrow keys are a safe no-op when history is disabled', () async {
       build(); // no history wired
       port.stdin.clear();
       term.emitInput(up);
       term.emitInput(down);
+      await pump();
       expect(sent(), isEmpty); // nothing forwarded to the shell
     });
   });
@@ -271,6 +307,7 @@ void main() {
       expect(shown(), contains('README.md'));
 
       term.emitInput('\r');
+      await pumpMs();
       expect(sent(), contains('README.md'));
     });
 
