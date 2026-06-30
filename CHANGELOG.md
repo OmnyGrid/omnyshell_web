@@ -1,3 +1,28 @@
+## 1.10.0
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.43.0. The upstream release refactors
+  the `:ide` engine behind an async, `dart:io`-free `Workspace` port so it now
+  **compiles to JavaScript** for the browser: the web client barrel now exports
+  `IdeApp`, `Workspace`, `RemoteWorkspace`, `TerminalDriver`, `ScreenBuffer` and
+  the key decoder, the building blocks for embedding the terminal IDE in a web
+  app (supply a `TerminalDriver` that renders `ScreenBuffer` frames into a
+  browser terminal and a `RemoteWorkspace` over the connected client). This bump
+  only pulls in those exports; the web client does not yet wire up the IDE, so
+  there is no user-facing change — a routine dependency refresh.
+
+## 1.9.0
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.42.0. The upstream release adds the
+  full-screen `:ide` TUI (a terminal IDE with a file tree, tabs, syntax
+  highlighting, a git-change gutter, an integrated terminal and an AI agent
+  panel) plus an optional starting directory for `omnyshell local`. All of it is
+  native-only (`:ide` is browser-excluded because it needs `dart:io`), so it does
+  not affect the browser client; this is a routine dependency refresh.
+
 ## 1.8.1
 
 ### Changed
