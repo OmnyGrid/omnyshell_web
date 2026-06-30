@@ -1,3 +1,13 @@
+## 1.14.0
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.45.0. That release adds live PTY resize to the node's
+  default `script` backend (no FFI) and makes a resume apply the resuming device's geometry — so,
+  together with the 1.13.2 measure-before-open fix, resuming on a differently-sized device now
+  resizes the shell and reflows a full-screen program. The upstream changes are node/CLI-side; the
+  browser barrel is unchanged, so this is a routine dependency refresh.
+
 ## 1.13.2
 
 ### Fixed
