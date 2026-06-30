@@ -271,6 +271,12 @@ class SessionViewScreen implements Screen {
         nodeInfo: () => _node,
         principalInfo: ctx.service.principal,
         remoteSession: session is RemoteSession ? session : null,
+        // Resuming into a full-screen program (nano, vim, claude, …): tell the
+        // host to start in passthrough and skip prompt priming, so it doesn't
+        // run cwd/marker commands that would corrupt the program's screen.
+        resumedInAltScreen: session is RemoteSession
+            ? session.resumedInAltScreen
+            : false,
         // Per principal+node command history (Up/Down), persisted to
         // localStorage — the browser analogue of the CLI's history file.
         history: CommandHistory.load(

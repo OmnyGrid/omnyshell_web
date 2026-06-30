@@ -52,6 +52,30 @@ void main() {
     expect(s, contains('printf'));
   });
 
+  test('resuming into a full-screen program does not prime the shell', () async {
+    // A session resumed while nano/vim/claude owns the screen: the host must
+    // NOT run the init line / cwd marker (priming) — those commands would be
+    // injected into the full-screen program and corrupt it. It starts in
+    // passthrough instead and relays keystrokes raw.
+    WebShellHost(
+      term: term,
+      session: port,
+      principal: 'alice',
+      nodeId: 'web-01',
+      resumedInAltScreen: true,
+    );
+    await pump();
+    expect(sent(), isEmpty, reason: 'no priming commands while in alt-screen');
+
+    // Replayed program output reaches the terminal, and typed keys are relayed
+    // raw to the program rather than line-edited.
+    port.emit([104, 105]); // the program repaints
+    term.emitInput('x');
+    await pump();
+    expect(shown(), contains('hi'));
+    expect(sent(), contains('x'));
+  });
+
   test('draws a prompt with principal, node and cwd on completion', () async {
     build();
     port.emit(utf8.encode(markerLine('/home/alice')));
