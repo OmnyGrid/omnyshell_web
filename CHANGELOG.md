@@ -1,3 +1,14 @@
+## 1.9.0
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.42.0. The upstream release adds the
+  full-screen `:ide` TUI (a terminal IDE with a file tree, tabs, syntax
+  highlighting, a git-change gutter, an integrated terminal and an AI agent
+  panel) plus an optional starting directory for `omnyshell local`. All of it is
+  native-only (`:ide` is browser-excluded because it needs `dart:io`), so it does
+  not affect the browser client; this is a routine dependency refresh.
+
 ## 1.8.1
 
 ### Changed
