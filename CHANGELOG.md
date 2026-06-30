@@ -1,4 +1,15 @@
-## 1.13.1
+## 1.13.2
+
+### Fixed
+
+- Resuming a session now opens at the **current device's** terminal size instead of briefly at
+  xterm's 80×24 default. The resume path read the terminal size synchronously, before the xterm
+  view's deferred fit had run; it now fits to the container first, so the size sent to the node
+  is correct on the first try (no reflow flash). When the node runs omnyshell 1.45.0+ (which
+  resizes the resumed PTY to the size the client opens with), resuming on a differently-sized
+  device reflows the shell / a full-screen program to this device. (No dependency bump — the
+  client's `omnyshell` package is unchanged.)
+
 
 ### Fixed
 
