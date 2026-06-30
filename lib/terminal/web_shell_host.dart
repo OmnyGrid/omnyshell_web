@@ -17,7 +17,8 @@ import 'package:omnyshell/omnyshell_client_web.dart'
         ShellFamily,
         HistoryCursor,
         ShellPromptState,
-        ShellSessionPort;
+        ShellSessionPort,
+        formatShellPrompt;
 
 import 'command_history.dart';
 import 'terminal_view.dart';
@@ -180,15 +181,17 @@ class WebShellHost implements TerminalKeys {
     _term.write(utf8.encode(_prompt(state)));
   }
 
-  String _prompt(ShellPromptState s) {
-    final cwd = s.cwd ?? '~';
-    final symbol = s.isRoot ? '#' : r'$';
-    final git = (s.branch != null && s.branch!.isNotEmpty)
-        ? ' \x1b[33m(${s.branch}${s.gitStatus != null ? ' ${s.gitStatus}' : ''})\x1b[0m'
-        : '';
-    return '\x1b[1;32m$_principal@$_nodeId\x1b[0m:'
-        '\x1b[1;34m$cwd\x1b[0m$git $symbol ';
-  }
+  /// Formats the prompt via the shared [formatShellPrompt] so the browser
+  /// prompt matches the CLI (user@node green, cwd cyan, git blue/red/green, a
+  /// bold-red privilege warning for root).
+  String _prompt(ShellPromptState s) => formatShellPrompt(
+    principal: _principal,
+    node: _nodeId,
+    cwd: s.cwd ?? '~',
+    branch: s.branch,
+    gitStatus: s.gitStatus,
+    privilege: s.privilege,
+  );
 
   void _onExit(int code) {
     if (_ended) return;

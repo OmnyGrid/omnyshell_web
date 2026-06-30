@@ -64,7 +64,7 @@ Future<({AiConfig config, HubHttpClient httpClient})?> resolveAiWiring({
           AiProviderKind.anthropic;
       final config = AiConfig(
         provider: provider,
-        model: settings.aiModel ?? _defaultModel(provider),
+        model: settings.aiModel ?? defaultModelFor(provider),
         apiKey: customKey,
         defaultMode: AgentMode.tryParse(settings.aiMode) ?? AgentMode.plan,
         language: settings.aiLanguage,
@@ -83,7 +83,7 @@ Future<({AiConfig config, HubHttpClient httpClient})?> resolveAiWiring({
     final config = AiConfig(
       // Hub default means the Hub's provider *and* model; a stale custom model
       // (set then switched back to Hub default) must not leak in here.
-      model: hub.model ?? _defaultModel(provider),
+      model: hub.model ?? defaultModelFor(provider),
       provider: provider,
       apiKey: '', // injected Hub-side
       plannerModel: hub.plannerModel,
@@ -106,14 +106,6 @@ Future<({AiConfig config, HubHttpClient httpClient})?> resolveAiWiring({
     return null;
   }
 }
-
-/// The fallback model when neither the user nor the Hub specified one. Mirrors
-/// the CLI's per-provider defaults so a fresh setup runs without hand-tuning.
-String _defaultModel(AiProviderKind provider) => switch (provider) {
-  AiProviderKind.anthropic => 'claude-haiku-4-5',
-  AiProviderKind.openai => 'gpt-4.1-mini',
-  AiProviderKind.gemini => 'gemini-2.5-flash',
-};
 
 /// A placeholder `:ai` shown when no provider is configured; points at Settings.
 class AiSetupCommand extends LocalCommand {

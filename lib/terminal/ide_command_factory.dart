@@ -2,12 +2,7 @@
 // can't be an initializing formal, so the assignment is intentional.
 // ignore_for_file: prefer_initializing_formals
 import 'package:command_shield/command_shield.dart'
-    show
-        Analyzer,
-        CommandShield,
-        CommandSyntax,
-        KnowledgeRiskDetector,
-        SecurityAnalyzer;
+    show Analyzer, CommandShield, KnowledgeRiskDetector, SecurityAnalyzer;
 import 'package:omnyshell/omnyshell_client_web.dart'
     show
         IdeApp,
@@ -15,9 +10,9 @@ import 'package:omnyshell/omnyshell_client_web.dart'
         LocalCommandContext,
         LocalCommandRegistry,
         RemoteWorkspace,
-        ShellFamily,
-        providerFor;
-import 'package:path/path.dart' as p;
+        ideCommandSyntaxFor,
+        providerFor,
+        resolveRemoteIdeRoot;
 
 import '../core/omnyshell_service.dart';
 import '../storage/settings_store.dart';
@@ -102,7 +97,7 @@ class WebIdeCommand extends LocalCommand {
     }
     final arg = args.isEmpty ? null : args.first;
 
-    final root = _resolveRemoteRoot(arg, context.currentRemoteCwd?.call());
+    final root = resolveRemoteIdeRoot(arg, context.currentRemoteCwd?.call());
     if (root == null) {
       context.writeLine(
         ':ide: remote working directory unknown yet — run a command first, '
@@ -151,26 +146,9 @@ class WebIdeCommand extends LocalCommand {
         aiProvider: aiProvider,
         aiModel: wiring?.config.model,
         shield: shield,
-        commandSyntax: _syntaxFor(context.shellFamily),
+        commandSyntax: ideCommandSyntaxFor(context.shellFamily),
       );
       await app.run();
     });
   }
-
-  /// Resolves the remote IDE root: an absolute remote (POSIX) path as-is, the
-  /// argument joined onto the remote cwd, or the remote cwd when no argument is
-  /// given. Null when the cwd is needed but not yet known. Mirrors the native
-  /// `IdeCommand._resolveRemoteRoot`.
-  static String? _resolveRemoteRoot(String? arg, String? remoteCwd) {
-    if (arg == null || arg.isEmpty || arg == '.') return remoteCwd;
-    if (p.posix.isAbsolute(arg)) return p.posix.normalize(arg);
-    if (remoteCwd == null) return null;
-    return p.posix.normalize(p.posix.join(remoteCwd, arg));
-  }
-
-  static CommandSyntax _syntaxFor(ShellFamily? family) => switch (family) {
-    ShellFamily.powershell => CommandSyntax.powershell,
-    ShellFamily.cmd => CommandSyntax.windowsCmd,
-    _ => CommandSyntax.bash,
-  };
 }

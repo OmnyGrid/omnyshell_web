@@ -1,4 +1,23 @@
-## 1.11.0
+## 1.12.0
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.44.0 and adopted its new shared,
+  browser-safe building blocks, replacing the web client's duplicated copies so
+  the two clients can't drift apart:
+  - the AI default-model map → `defaultModelFor` (drops the local `_defaultModel`);
+  - the `:ide` remote-root resolution and shell-family → command syntax →
+    `resolveRemoteIdeRoot` / `ideCommandSyntaxFor` (drops the local copies and
+    the direct `package:path` dependency);
+  - the IDE terminal driver's ANSI emission → `XtermTerminalDriver` now extends
+    the shared `AnsiTerminalDriver` and only supplies the xterm.js byte sink,
+    size, and input/resize streams;
+  - command history now implements the shared `CommandHistoryStore` interface.
+- The shell prompt is now formatted by the shared `formatShellPrompt`, so it
+  matches the CLI: the working directory is cyan (was blue), the git segment is
+  blue with a red branch and green status counts (was yellow), and the
+  superuser is shown with a bold-red `(⚠ root)` warning (was a `#` symbol).
+
 
 ### Added
 

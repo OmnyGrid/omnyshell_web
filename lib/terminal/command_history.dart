@@ -1,5 +1,5 @@
 import 'package:omnyshell/omnyshell_client_web.dart'
-    show CommandHistoryBuffer, HistoryCursor;
+    show CommandHistoryBuffer, CommandHistoryStore, HistoryCursor;
 
 import '../storage/key_value_store.dart';
 
@@ -13,7 +13,7 @@ import '../storage/key_value_store.dart';
 /// `<principal>@<node>`) maps to its own `localStorage` entry, so connecting to
 /// different nodes or as different principals never mixes histories. Entries are
 /// persisted as newline-joined lines.
-class CommandHistory {
+class CommandHistory implements CommandHistoryStore {
   /// Namespace for stored histories, kept distinct from settings/cache keys.
   static const String storagePrefix = 'omnyshell.history.';
 
@@ -63,11 +63,13 @@ class CommandHistory {
   List<String> get entries => _buffer.entries;
 
   /// A fresh Up/Down navigation cursor over this history's entries.
+  @override
   HistoryCursor cursor() => HistoryCursor(_buffer);
 
   /// Records [entry], skipping blank lines and consecutive duplicates, then
   /// persists. Storage failures are swallowed so the interactive session is
   /// never interrupted by a write error.
+  @override
   void add(String entry) {
     if (_buffer.add(entry)) _persist();
   }
