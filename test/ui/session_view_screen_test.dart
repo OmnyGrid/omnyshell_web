@@ -85,10 +85,11 @@ void main() {
     // The host primed the shell on connect (init line + marker → stdin).
     expect(io.stdin, isNotEmpty);
 
-    // Remote output reaches the terminal.
+    // Remote output reaches the terminal. The editor wraps it (erase line +
+    // repaint prompt around it), so the bytes are one of several writes.
     io.emit([104, 105]);
     await pump();
-    expect(term.writes.single, [104, 105]);
+    expect(term.writes, contains(equals([104, 105])));
 
     screen.dispose();
     h.dispose();
