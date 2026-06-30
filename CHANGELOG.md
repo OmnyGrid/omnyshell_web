@@ -1,3 +1,19 @@
+## 1.8.1
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.41.1. The upstream changes (a native
+  `omnyshell local` CLI mode and README documentation) do not affect the browser
+  client; this is a routine dependency refresh.
+
+### Documentation
+
+- README: added the live PWA link (<https://omnygrid.github.io/omnyshell_web/>),
+  documented the in-browser `:ai` agent (provider/model/key or Hub default, with
+  the post-run token-usage stats line), and corrected the install instructions —
+  the client now depends on the published `omnyshell` package from pub.dev, not a
+  `../omnyshell` path override (which is now a local-only dev aid).
+
 ## 1.8.0
 
 ### Changed
