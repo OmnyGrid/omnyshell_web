@@ -1,3 +1,17 @@
+## 1.13.1
+
+### Fixed
+
+- Resuming a session whose program is in the **alternate screen** (nano, vim,
+  `claude`, …) no longer corrupts it. The web client was always priming the
+  shell on connect — running the init line and a cwd/marker command to draw the
+  prompt — even when resuming into a full-screen program, so those commands were
+  injected into the program. The host now honors the session's
+  `resumedInAltScreen` flag (already reported by the node on resume): it starts
+  in passthrough and skips priming, letting the replayed output repaint the
+  program and its queued marker restore the prompt when it exits — matching the
+  CLI's `connect` loop.
+
 ## 1.13.0
 
 ### Changed

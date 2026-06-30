@@ -74,6 +74,10 @@ class WebShellHost implements TerminalKeys {
   /// Persistent command history (Up/Down), or an in-memory one when disabled.
   final CommandHistory _history;
 
+  /// True when resuming a session whose program is in the alternate screen, so
+  /// the controller starts in passthrough and skips prompt priming.
+  final bool _resumedInAltScreen;
+
   bool _passthrough = false;
   bool _ctrlArmed = false;
   bool _ended = false;
@@ -115,9 +119,12 @@ class WebShellHost implements TerminalKeys {
     Principal? principalInfo,
     RemoteSession? remoteSession,
     CommandHistory? history,
+    bool resumedInAltScreen = false,
     void Function()? onSessionExit,
     void Function()? onSessionDetached,
   }) : _history = history ?? CommandHistory.inMemory(),
+       // ignore: prefer_initializing_formals
+       _resumedInAltScreen = resumedInAltScreen,
        _startedAt = startedAt ?? DateTime.now(),
        // ignore: prefer_initializing_formals
        _term = term,
@@ -156,6 +163,12 @@ class WebShellHost implements TerminalKeys {
     );
     _controller = InteractiveShellController(
       session: session,
+      // Resuming a session whose program is in the alternate screen (nano, vim,
+      // claude, …): start in passthrough and DON'T prime the prompt — priming
+      // would run cwd/marker commands that corrupt the full-screen program. The
+      // replayed output repaints it and its queued marker restores the prompt on
+      // exit. Mirrors the CLI's `resumedInAltScreen` wiring.
+      resumedInAltScreen: _resumedInAltScreen,
       // Remote output repaints around the input line (matching the CLI), so a
       // backgrounded job's bytes appear above the prompt rather than tangled
       // with it. While a program owns the screen (passthrough) it just emits.
