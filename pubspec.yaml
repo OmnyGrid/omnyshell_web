@@ -2,7 +2,7 @@ name: omnyshell_web
 description: >-
   Browser-only client for the OmnyShell ecosystem — connect to a Hub, discover
   nodes, and manage interactive sessions. Installable PWA.
-version: 1.10.1
+version: 1.11.0
 # repository: https://github.com/my_org/my_repo
 
 environment:
@@ -11,6 +11,11 @@ environment:
 dependencies:
   omnyshell: ^1.43.1
   web: ^1.1.1
+  # The `:ide` agent panel gates its run_command tool with the same shield the
+  # CLI uses; both are browser-safe (dart:io-free) and already pulled in by
+  # omnyshell, so depend on them directly.
+  command_shield: ^1.4.0
+  path: ^1.9.0
 
 dev_dependencies:
   build_runner: ^2.15.0

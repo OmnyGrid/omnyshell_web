@@ -1,3 +1,24 @@
+## 1.11.0
+
+### Added
+
+- **`:ide` (alias `:edit`) — the full-screen terminal IDE in the browser.**
+  Typing `:ide [path]` in a session opens omnyshell's TUI IDE on the **connected
+  node**, rendered right inside the xterm.js terminal: a file-tree sidebar with
+  git status, tabbed editing with syntax highlighting and a git-change gutter, an
+  integrated terminal, and an AI agent panel. `Ctrl-Q` returns to the shell.
+  - The IDE engine (`IdeApp`/`ScreenBuffer`/`RemoteWorkspace`, exported by
+    omnyshell ^1.43.1) is `dart:io`-free; this adds the browser glue: an
+    `XtermTerminalDriver` that maps the engine's alternate-screen frames to
+    xterm.js (and its `onData`/`onResize` back to the engine), and a full-screen
+    takeover seam in `WebShellHost` (the browser counterpart to the CLI's
+    `LineEditor.suspendInput`) that diverts every raw keystroke to the IDE while
+    it owns the screen and restores the prompt on exit.
+  - The agent panel routes provider calls through the Hub (same precedence as
+    `:ai`: custom key → Hub default → setup help) and gates its `run_command`
+    tool with the same `command_shield` the CLI uses. File operations run on the
+    node over the connected session (`RemoteWorkspace`).
+
 ## 1.10.1
 
 ### Fixed

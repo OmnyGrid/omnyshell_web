@@ -14,6 +14,7 @@ import '../../app/app_context.dart';
 import '../../core/app_error.dart';
 import '../../terminal/ai_command_factory.dart';
 import '../../terminal/command_history.dart';
+import '../../terminal/ide_command_factory.dart';
 import '../../terminal/terminal_accessory.dart';
 import '../../terminal/terminal_dimensions.dart';
 import '../../terminal/terminal_view.dart';
@@ -278,6 +279,16 @@ class SessionViewScreen implements Screen {
         ),
         onSessionExit: () => _leaveAfterLocalCommand(detached: false),
         onSessionDetached: () => _leaveAfterLocalCommand(detached: true),
+      );
+      // Register `:ide` once the host exists (it supplies the full-screen seam
+      // and resize stream the IDE driver needs). The remote node is the IDE's
+      // workspace, rendered into this terminal.
+      registerIdeCommand(
+        registry: commands,
+        term: term,
+        resizeEvents: shell.resizeEvents,
+        service: ctx.service,
+        settings: ctx.settings,
       );
       clearChildren(_status);
       // Mount the on-screen accessory key bar (Esc/Tab/Ctrl/arrows/…, copy/paste).

@@ -29,6 +29,12 @@ Flutter.
   provider (the key stays on the Hub). Commands run in the live session, gated by
   the same `command_shield` safety checks as the CLI, and each interaction ends
   with a token-usage stats line (tokens, tok/s, requests, duration).
+- **Terminal IDE (`:ide`, alias `:edit`)** — open the full-screen TUI IDE on the
+  connected node, right inside the browser terminal: a file-tree sidebar with git
+  status, tabbed editing with syntax highlighting and a git-change gutter, an
+  integrated terminal, and an AI agent panel (gated by the same `command_shield`
+  as `:ai`). `:ide [path]` opens a directory; `Ctrl-Q` returns to the shell. The
+  IDE operates on the remote node over the connected session.
 - **Theming** — light, dark, and system themes with a persistent selector and
   no flash of the wrong palette on load.
 - **Resilience** — explicit loading/empty/error states everywhere, dropped-
@@ -36,7 +42,7 @@ Flutter.
 
 These map to the `omnyshell` CLI's client commands: `login`/`logout`,
 `nodes list`, `connect`, `sessions list/peek/resume/detach/kill`, and the
-in-session `:ai` agent.
+in-session `:ai` agent and `:ide` terminal IDE.
 
 ## Running
 

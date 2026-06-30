@@ -92,6 +92,17 @@ class WebShellHost implements TerminalKeys {
   /// The agent's own confirmation questions go through [_readLine], not
   /// [_onPrompt], so they still render while this is set.
   bool _idlePromptHidden = false;
+
+  /// While a full-screen local command (the `:ide` TUI) owns the screen, every
+  /// keystroke is diverted into this sink instead of the line editor /
+  /// passthrough, and the persistent prompt is not painted. `null` at idle.
+  /// See [_runFullScreen], wired into [LocalCommandContext.runFullScreen].
+  StreamController<List<int>>? _fullScreen;
+
+  /// Broadcasts terminal resizes to a full-screen command (the IDE) so it can
+  /// reflow. The shell controller also receives every resize for the remote PTY.
+  final StreamController<void> _resize = StreamController<void>.broadcast();
+
   final DateTime _startedAt;
   ShellPromptState _lastPrompt = const ShellPromptState();
 
@@ -141,7 +152,7 @@ class WebShellHost implements TerminalKeys {
       onExit: _onExit,
     );
     _term.onInput((data) => _handleBytes(utf8.encode(data)));
-    _term.onResize(_controller.resize);
+    _term.onResize(_onResize);
     final size = _term.size;
     if (size.cols > 0 && size.rows > 0) {
       _controller.resize(size.cols, size.rows);
@@ -151,6 +162,16 @@ class WebShellHost implements TerminalKeys {
 
   /// Whether the session has ended.
   bool get ended => _ended;
+
+  /// Fires when the terminal is resized — consumed by a full-screen command
+  /// (the `:ide` driver) so it can reflow.
+  Stream<void> get resizeEvents => _resize.stream;
+
+  /// Resizes the remote PTY and notifies any full-screen command.
+  void _onResize(int cols, int rows) {
+    _controller.resize(cols, rows);
+    if (!_resize.isClosed) _resize.add(null);
+  }
 
   void _onPrompt(ShellPromptState state) {
     _lastPrompt = state;
@@ -178,6 +199,15 @@ class WebShellHost implements TerminalKeys {
   void _handleBytes(List<int> raw) {
     if (_ended || raw.isEmpty) return;
     final bytes = _applyArmedCtrl(raw);
+
+    // A full-screen command (the `:ide` TUI) owns the screen: forward every key
+    // to it (including Ctrl-C and arrows — the IDE decodes them itself) and skip
+    // the line editor / passthrough entirely.
+    final fullScreen = _fullScreen;
+    if (fullScreen != null) {
+      if (!fullScreen.isClosed) fullScreen.add(bytes);
+      return;
+    }
 
     if (_passthrough) {
       // A program owns the terminal: relay raw, but turn Ctrl-C into an
@@ -361,6 +391,27 @@ class WebShellHost implements TerminalKeys {
     return completer.future;
   }
 
+  /// Grants a local command exclusive ownership of the terminal for a
+  /// full-screen takeover (the `:ide` TUI): every keystroke is diverted to
+  /// [body] via the stream it receives (the line editor goes dormant), [body]
+  /// paints the whole screen, and the idle prompt is restored by the caller
+  /// ([_runLocalCommand]) once it returns. The browser counterpart to the CLI's
+  /// `LineEditor.suspendInput`, wired into [LocalCommandContext.runFullScreen].
+  Future<void> _runFullScreen(
+    Future<void> Function(Stream<List<int>> input) body,
+  ) async {
+    // A prior takeover should always have torn down first; guard anyway.
+    await _fullScreen?.close();
+    final controller = StreamController<List<int>>();
+    _fullScreen = controller;
+    try {
+      await body(controller.stream);
+    } finally {
+      if (identical(_fullScreen, controller)) _fullScreen = null;
+      await controller.close();
+    }
+  }
+
   /// A horizontal rule sized to the terminal, for commands that frame output.
   String _horizontalRule() {
     final cols = _term.size.cols;
@@ -414,9 +465,12 @@ class WebShellHost implements TerminalKeys {
       node: node,
       principal: _principalInfo,
       session: _remoteSession,
+      shellFamily: _controller.shellFamily,
       startedAt: _startedAt,
       writeLine: _writeLine,
       currentRemoteCwd: () => _lastPrompt.cwd,
+      // Full-screen takeover for the `:ide` TUI (raw input + alternate screen).
+      runFullScreen: _runFullScreen,
       // Interactive prompts + Ctrl-C abort for the `:ai` agent.
       readLine: _readLine,
       onInterruptRequest: (handler) {
@@ -597,5 +651,9 @@ class WebShellHost implements TerminalKeys {
   Future<void> close() => _controller.close();
 
   /// Stops driving the session without detaching/closing it (on unmount).
-  Future<void> dispose() => _controller.dispose();
+  Future<void> dispose() {
+    unawaited(_fullScreen?.close());
+    unawaited(_resize.close());
+    return _controller.dispose();
+  }
 }
