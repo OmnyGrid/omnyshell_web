@@ -1,3 +1,14 @@
+## 1.10.1
+
+### Fixed
+
+- The release web build (`dart2js`) produced no `main.dart.js` under omnyshell
+  1.43.0: that release's "web-safe" barrel transitively imported `dart:io` (via
+  `RemoteWorkspace → local_workspace.dart`), so dart2js silently skipped
+  compiling `web/main.dart`. Bumped the `omnyshell` dependency to ^1.43.1, which
+  moves `WorkspaceException` into the `dart:io`-free `Workspace` port and makes
+  the barrel genuinely browser-compilable again. No web code change.
+
 ## 1.10.0
 
 ### Changed
