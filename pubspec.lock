@@ -146,7 +146,7 @@ packages:
     source: hosted
     version: "1.19.1"
   command_shield:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: command_shield
       sha256: c39f699d55df40e64b17feaa8d58ee6746f6d913e4d12f228c61680a6f1223b7
@@ -378,7 +378,7 @@ packages:
     source: hosted
     version: "2.2.0"
   path:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: path
       sha256: "75cca69d1490965be98c73ceaea117e8a04dd21217b37b292c9ddbec0d955bc5"

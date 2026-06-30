@@ -23,88 +23,88 @@ Future<void> registerAiCommand({
   required OmnyShellService service,
   required void Function() openSettings,
 }) async {
+  final wiring = await resolveAiWiring(settings: settings, service: service);
+  if (wiring == null) {
+    registry.register(AiSetupCommand(openSettings));
+    return;
+  }
+  registry.addAiCommand(
+    config: wiring.config,
+    httpClient: wiring.httpClient,
+    style: const AnsiAgentStyle(),
+    onModeChanged: (mode) => settings.aiMode = mode.wireName,
+    onLanguageChanged: (language) => settings.aiLanguage = language,
+  );
+}
+
+/// Resolves the AI provider config and the Hub-routed HTTP client for the
+/// connected session, mirroring `:ai`'s precedence:
+///
+/// * **Custom key** — when the user opted out of the Hub default and supplied an
+///   API key, it is forwarded verbatim ([HttpProxyCredentialMode.none]).
+/// * **Hub default** — otherwise the Hub's configured provider/model is used and
+///   the Hub injects its key ([HttpProxyCredentialMode.hubDefault]).
+///
+/// Returns `null` when no provider is configured (custom key absent and the Hub
+/// advertises no default) or on any failure — callers then treat AI as
+/// unavailable (a stub `:ai`, or the `:ide` agent panel showing setup help).
+/// Shared by [registerAiCommand] and the `:ide` command so both wire the agent
+/// identically.
+Future<({AiConfig config, HubHttpClient httpClient})?> resolveAiWiring({
+  required SettingsStore settings,
+  required OmnyShellService service,
+}) async {
   try {
     final customKey = settings.aiApiKey;
     if (!settings.aiUseHubDefault &&
         customKey != null &&
         customKey.isNotEmpty) {
-      _registerCustom(registry, settings, service, customKey);
-      return;
+      final provider =
+          AiProviderKind.tryParse(settings.aiProvider) ??
+          AiProviderKind.anthropic;
+      final config = AiConfig(
+        provider: provider,
+        model: settings.aiModel ?? _defaultModel(provider),
+        apiKey: customKey,
+        defaultMode: AgentMode.tryParse(settings.aiMode) ?? AgentMode.plan,
+        language: settings.aiLanguage,
+      );
+      return (config: config, httpClient: HubHttpClient(service.client));
     }
 
-    // Don't let a silent/slow Hub stall session open; fall back to the stub.
+    // Don't let a silent/slow Hub stall session open; fall back to no provider.
     final hub = await service.fetchHubAiConfig().timeout(
       const Duration(seconds: 8),
     );
     final providerToken = hub.provider;
-    if (!hub.available || providerToken == null) {
-      registry.register(AiSetupCommand(openSettings));
-      return;
-    }
-    _registerHubDefault(registry, settings, service, hub, providerToken);
+    if (!hub.available || providerToken == null) return null;
+    final provider =
+        AiProviderKind.tryParse(providerToken) ?? AiProviderKind.anthropic;
+    final config = AiConfig(
+      // Hub default means the Hub's provider *and* model; a stale custom model
+      // (set then switched back to Hub default) must not leak in here.
+      model: hub.model ?? _defaultModel(provider),
+      provider: provider,
+      apiKey: '', // injected Hub-side
+      plannerModel: hub.plannerModel,
+      executorModel: hub.executorModel,
+      explainerModel: hub.explainerModel,
+      baseUrl: hub.baseUrl,
+      defaultMode:
+          AgentMode.tryParse(settings.aiMode ?? hub.mode) ?? AgentMode.plan,
+      language: settings.aiLanguage ?? hub.language,
+    );
+    return (
+      config: config,
+      httpClient: HubHttpClient(
+        service.client,
+        credentialMode: HttpProxyCredentialMode.hubDefault,
+        provider: provider.wireName,
+      ),
+    );
   } on Object {
-    registry.register(AiSetupCommand(openSettings));
+    return null;
   }
-}
-
-void _registerCustom(
-  LocalCommandRegistry registry,
-  SettingsStore settings,
-  OmnyShellService service,
-  String apiKey,
-) {
-  final provider =
-      AiProviderKind.tryParse(settings.aiProvider) ?? AiProviderKind.anthropic;
-  final config = AiConfig(
-    provider: provider,
-    model: settings.aiModel ?? _defaultModel(provider),
-    apiKey: apiKey,
-    defaultMode: AgentMode.tryParse(settings.aiMode) ?? AgentMode.plan,
-    language: settings.aiLanguage,
-  );
-  registry.addAiCommand(
-    config: config,
-    httpClient: HubHttpClient(service.client),
-    style: const AnsiAgentStyle(),
-    onModeChanged: (mode) => settings.aiMode = mode.wireName,
-    onLanguageChanged: (language) => settings.aiLanguage = language,
-  );
-}
-
-void _registerHubDefault(
-  LocalCommandRegistry registry,
-  SettingsStore settings,
-  OmnyShellService service,
-  HubAiConfig hub,
-  String providerToken,
-) {
-  final provider =
-      AiProviderKind.tryParse(providerToken) ?? AiProviderKind.anthropic;
-  final config = AiConfig(
-    // Hub default means the Hub's provider *and* model; a stale custom model
-    // (set then switched back to Hub default) must not leak in here.
-    model: hub.model ?? _defaultModel(provider),
-    provider: provider,
-    apiKey: '', // injected Hub-side
-    plannerModel: hub.plannerModel,
-    executorModel: hub.executorModel,
-    explainerModel: hub.explainerModel,
-    baseUrl: hub.baseUrl,
-    defaultMode:
-        AgentMode.tryParse(settings.aiMode ?? hub.mode) ?? AgentMode.plan,
-    language: settings.aiLanguage ?? hub.language,
-  );
-  registry.addAiCommand(
-    config: config,
-    httpClient: HubHttpClient(
-      service.client,
-      credentialMode: HttpProxyCredentialMode.hubDefault,
-      provider: provider.wireName,
-    ),
-    style: const AnsiAgentStyle(),
-    onModeChanged: (mode) => settings.aiMode = mode.wireName,
-    onLanguageChanged: (language) => settings.aiLanguage = language,
-  );
 }
 
 /// The fallback model when neither the user nor the Hub specified one. Mirrors
