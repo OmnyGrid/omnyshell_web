@@ -340,6 +340,12 @@ button.btn-sm { padding: 6px 10px; font-size: 0.82rem; }
   max-height: 600px;
 }
 .terminal-host .xterm { height: 100%; }
+/* The terminal palette is dark; in the light theme invert it so it reads as a
+   light terminal instead of a dark box on a light page. The card frame is
+   painted to match the terminal background, so set it to the inverted+hue-
+   rotated colour (#eff2f6) — otherwise a dark border rings the inverted box. */
+[data-theme="light"] .terminal-host { filter: invert(1) hue-rotate(180deg); }
+[data-theme="light"] .terminal-card { background: #eff2f6; }
 
 /* On-screen accessory key bar (touch devices lack Esc/Tab/Ctrl/arrows). */
 .term-accessory {
