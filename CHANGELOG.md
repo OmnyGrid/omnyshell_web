@@ -1,3 +1,11 @@
+## 1.14.4
+
+### Changed
+
+- In the light theme the terminal is inverted (`filter: invert(1) hue-rotate(180deg)`) so it
+  reads as a light terminal instead of a dark box on a light page; the card frame is lightened
+  to match so no dark border rings it. The dark theme is unchanged.
+
 ## 1.14.3
 
 ### Changed
