@@ -1,3 +1,13 @@
+## 1.14.6
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.49.0. That release expands the `omnyshell dashboard`
+  full-screen CLI TUI into a four-tab operator console (Nodes, Tunnels, Drive, AI), gives it a
+  blue-free monochrome dark theme, and fixes a stale-sessions flash when opening a node. The
+  changes are node/CLI-side; the browser barrel is unchanged, so this is a routine dependency
+  refresh.
+
 ## 1.14.5
 
 ### Changed
