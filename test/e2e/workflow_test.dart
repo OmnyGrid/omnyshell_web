@@ -65,8 +65,8 @@ void main() {
       await pump();
       expect(h.container.textContent, contains('Overview'));
 
-      // Go to sessions.
-      byText(h.container, 'Sessions')!.click();
+      // Go to sessions (via the node's sessions-preview "View all" button).
+      byText(h.container, 'View all')!.click();
       await pump();
       expect(h.container.textContent, contains('aaaa1111'));
 

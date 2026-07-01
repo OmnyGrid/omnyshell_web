@@ -28,9 +28,6 @@
 
 - **Typing after TAB/Arrow-Up no longer staircases a new prompt line per keystroke on a narrow
   terminal (iOS Safari).** The shared `LineEditor` repainted the input line assuming it fits one
-
-- **Typing after TAB/Arrow-Up no longer staircases a new prompt line per keystroke on a narrow
-  terminal (iOS Safari).** The shared `LineEditor` repainted the input line assuming it fits one
   row, so once a completed path or recalled command wrapped, every keystroke redrew a fresh
   prompt. `WebShellHost` now feeds the xterm terminal width to the editor (and updates it on
   resize), and the `omnyshell` dependency is bumped to ^1.46.0, which repaints across wrapped
