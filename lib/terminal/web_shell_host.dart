@@ -152,6 +152,10 @@ class WebShellHost implements TerminalKeys {
       input: _input.stream,
       output: (s) => _term.write(utf8.encode(s)),
       history: _history,
+      // The editor repaints across wrapped rows using the terminal width; keep
+      // it current via [setWidth] in [_onResize]. Without it a wrapped prompt
+      // (narrow phone terminals) staircases a fresh prompt per keystroke.
+      width: _term.size.cols,
       // The browser terminal is always "raw" (xterm delivers keystrokes
       // verbatim); there is no mode to toggle.
       setRawMode: null,
@@ -202,6 +206,9 @@ class WebShellHost implements TerminalKeys {
   /// Resizes the remote PTY and notifies any full-screen command.
   void _onResize(int cols, int rows) {
     _controller.resize(cols, rows);
+    // Keep the editor's wrap math in sync so a resized terminal reflows the
+    // input line instead of staircasing.
+    _editor.setWidth(cols);
     if (!_resize.isClosed) _resize.add(null);
   }
 
