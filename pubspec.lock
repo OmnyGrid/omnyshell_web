@@ -365,10 +365,10 @@ packages:
     dependency: "direct main"
     description:
       name: omnyshell
-      sha256: "0764abcefbaab728497570c99e41e75b7e53cae1321b9e5bd3a59133f316ac27"
+      sha256: e6e97b05cbaf161d874dce7935f946c70cf93505fdadbc5ad68ff2678f06cc95
       url: "https://pub.dev"
     source: hosted
-    version: "1.46.0"
+    version: "1.47.0"
   package_config:
     dependency: transitive
     description:

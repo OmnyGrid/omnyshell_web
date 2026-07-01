@@ -1,3 +1,12 @@
+## 1.14.3
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.47.0. That release adds the `omnyshell dashboard`
+  full-screen CLI TUI (which itself ports UX from this web client — session sorting/highlight,
+  soft refresh failures, friendly login errors). The changes are node/CLI-side; the browser
+  barrel is unchanged, so this is a routine dependency refresh.
+
 ## 1.14.2
 
 ### Added
