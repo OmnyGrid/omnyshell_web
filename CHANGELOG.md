@@ -1,3 +1,13 @@
+## 1.14.5
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.48.0 and adopted its width-fitting shell prompt: the
+  browser prompt now passes the terminal width to `formatShellPrompt`, so on narrow (phone)
+  terminals it progressively drops the least-important pieces (git status counts → `@node` →
+  `cwd` shortened to `…/basename` → the whole git segment) to leave room to type, keeping the
+  `(⚠ privilege)` warning. It re-evaluates on terminal resize/rotation.
+
 ## 1.14.4
 
 ### Changed

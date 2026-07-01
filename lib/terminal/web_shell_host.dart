@@ -209,6 +209,9 @@ class WebShellHost implements TerminalKeys {
     // Keep the editor's wrap math in sync so a resized terminal reflows the
     // input line instead of staircasing.
     _editor.setWidth(cols);
+    // Re-evaluate the width-fitted prompt at the new size (the CLI does this on
+    // SIGWINCH); a no-op when nothing is showing (passthrough / running command).
+    _redraw();
     if (!_resize.isClosed) _resize.add(null);
   }
 
@@ -286,6 +289,9 @@ class WebShellHost implements TerminalKeys {
     branch: s.branch,
     gitStatus: s.gitStatus,
     privilege: s.privilege,
+    // Shrink the prompt to fit narrow (phone) terminals, matching the CLI. The
+    // formatter drops the least-important pieces first; 0 renders the full form.
+    width: _term.size.cols,
   );
 
   void _onExit(int code) {
