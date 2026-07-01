@@ -224,6 +224,10 @@ class SessionViewScreen implements Screen {
       // Remember the session id for a reliable control-plane terminate (see
       // [_terminate]); it's set once the node confirms the session is open.
       _sessionId = session.id?.value;
+      // Mark this the last-interacted session so it's highlighted and sorted to
+      // the top when you return to the sessions list (covers a freshly created
+      // session, whose short id the list only learns on its next refresh).
+      if (_sessionId != null) ctx.lastSession.value = _sessionId;
       // Load the node descriptor in the background so local `:` commands
       // (`:info`, `:tree`, `:tunnel`, …) have node metadata; best-effort.
       unawaited(_loadNode());

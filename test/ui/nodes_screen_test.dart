@@ -18,6 +18,15 @@ void main() {
   Future<void> pump([int ms = 20]) =>
       Future<void>.delayed(Duration(milliseconds: ms));
 
+  web.HTMLElement? buttonWithText(web.Element root, String text) {
+    final list = root.querySelectorAll('button');
+    for (var i = 0; i < list.length; i++) {
+      final b = list.item(i) as web.HTMLElement;
+      if (b.textContent == text) return b;
+    }
+    return null;
+  }
+
   Future<DomHarness> connectedHarness({FakeHub? hub}) async {
     final h = DomHarness(hub: hub ?? FakeHub(validToken: 'good'));
     await h.ctx.auth.login(
@@ -108,6 +117,73 @@ void main() {
       expect(h.container.textContent, contains('Capabilities'));
       expect(h.container.querySelector('.badge'), isNotNull);
 
+      screen.dispose();
+      h.dispose();
+    });
+
+    test(
+      'previews sessions with View all; only New shell in the toolbar',
+      () async {
+        final hub = FakeHub(
+          validToken: 'good',
+          nodes: [sampleNode('web-01')],
+          sessions: [sampleSession('aaaa1111', command: 'vim')],
+        );
+        final h = await connectedHarness(hub: hub);
+        await h.ctx.nodes.load();
+
+        final screen = NodeDetailScreen(h.ctx, 'web-01');
+        mount(h.container, screen.element);
+        await pump();
+
+        // Sessions preview card shows the session before visiting the list.
+        expect(h.container.textContent, contains('1 session'));
+        expect(h.container.textContent, contains('aaaa1111'));
+        expect(buttonWithText(h.container, 'View all'), isNotNull);
+
+        // The toolbar keeps New shell; the Sessions button was removed.
+        final toolbar = h.container.querySelector('.toolbar')!;
+        expect(buttonWithText(toolbar, 'New shell'), isNotNull);
+        expect(buttonWithText(toolbar, 'Sessions'), isNull);
+
+        screen.dispose();
+        h.dispose();
+      },
+    );
+
+    test('clicking a previewed session marks it and opens the list', () async {
+      final hub = FakeHub(
+        validToken: 'good',
+        nodes: [sampleNode('web-01')],
+        sessions: [sampleSession('aaaa1111')],
+      );
+      final h = await connectedHarness(hub: hub);
+      await h.ctx.nodes.load();
+
+      final screen = NodeDetailScreen(h.ctx, 'web-01');
+      mount(h.container, screen.element);
+      await pump();
+
+      (h.container.querySelector('.list-item')! as web.HTMLElement).click();
+      await pump();
+
+      expect(h.ctx.lastSession.value, 'aaaa1111');
+      expect(web.window.location.hash, contains('/nodes/web-01/sessions'));
+
+      screen.dispose();
+      h.dispose();
+    });
+
+    test('sessions preview shows an empty state when there are none', () async {
+      final hub = FakeHub(validToken: 'good', nodes: [sampleNode('web-01')]);
+      final h = await connectedHarness(hub: hub);
+      await h.ctx.nodes.load();
+
+      final screen = NodeDetailScreen(h.ctx, 'web-01');
+      mount(h.container, screen.element);
+      await pump();
+
+      expect(h.container.textContent, contains('No active sessions'));
       screen.dispose();
       h.dispose();
     });

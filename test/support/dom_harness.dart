@@ -1,4 +1,5 @@
 import 'package:omnyshell_web/app/app_context.dart';
+import 'package:omnyshell_web/core/observable.dart';
 import 'package:omnyshell_web/core/omnyshell_service.dart';
 import 'package:omnyshell_web/router/router.dart';
 import 'package:omnyshell_web/state/ai_settings_controller.dart';
@@ -90,6 +91,7 @@ class DomHarness {
       settings: settings,
       kv: kv,
       toasts: toasts,
+      lastSession: Observable<String?>(null),
     );
 
     return DomHarness._(

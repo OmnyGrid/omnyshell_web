@@ -124,7 +124,7 @@ class App {
     children.add(
       button(
         '⚙',
-        className: 'icon ghost',
+        className: 'icon ghost settings-icon',
         ariaLabel: 'Settings',
         onClick: () => showSettingsPanel(ctx),
       ),
@@ -132,7 +132,9 @@ class App {
     children.add(_themeToggle());
 
     if (connected) {
-      children.add(button('Sign out', className: 'ghost', onClick: _logout));
+      children.add(
+        button('Sign out', className: 'ghost btn-sm', onClick: _logout),
+      );
     }
 
     clearChildren(_header);
@@ -150,7 +152,7 @@ class App {
     };
     return button(
       label,
-      className: 'ghost',
+      className: 'ghost btn-sm',
       ariaLabel: 'Theme: ${mode.name}. Click to change.',
       onClick: ctx.theme.cycle,
     );

@@ -194,8 +194,13 @@ button.primary:hover { filter: brightness(1.06); background: var(--accent); }
 button.ghost { background: transparent; border-color: transparent; }
 button.ghost:hover { background: var(--bg-sunken); }
 button.icon { padding: 8px; line-height: 1; }
+/* The settings gear reads a touch small at the base size; nudge the glyph up. */
+button.settings-icon { font-size: 1.2rem; }
 button.danger { color: var(--danger); border-color: var(--border-strong); }
 button.danger:hover { background: var(--danger-weak); }
+/* Compact button (e.g. the sessions toolbar's New Session / Refresh); the
+   `button.` prefix keeps it winning over the larger mobile touch padding. */
+button.btn-sm { padding: 6px 10px; font-size: 0.82rem; }
 
 .badge {
   display: inline-flex; align-items: center; gap: 6px;
@@ -251,8 +256,31 @@ button.danger:hover { background: var(--danger-weak); }
   color: inherit;
 }
 .list-item:hover { border-color: var(--border-strong); background: var(--bg-elevated); }
+/* The last-interacted session in the list gets an accent ring so it's easy to
+   spot after arriving from a node's session preview. */
+.list-item.highlight {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
 .list-item .title { font-weight: 600; }
 .list-item .sub { color: var(--fg-muted); font-size: 0.85rem; }
+
+/* Session action buttons stay compact and on one line. */
+.session-actions { flex-wrap: nowrap; gap: 6px; flex: 0 0 auto; }
+.session-actions button { padding: 6px 10px; font-size: 0.82rem; }
+
+/* The running-program badge sits beside the state badge, accented and
+   truncated so a long command doesn't blow out the row. */
+.badge.cmd {
+  background: var(--success-weak);
+  color: var(--success);
+  border-color: transparent;
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
 
 .kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; }
 .kv dt { color: var(--fg-muted); }
@@ -268,6 +296,17 @@ button.danger:hover { background: var(--danger-weak); }
 
 .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .toolbar h1 { margin: 0; }
+/* The sessions toolbar heading sits above the big node-id title, so keep it a
+   touch smaller. */
+.toolbar h1.sessions-title { font-size: 1.15rem; }
+/* The node id title grows to push the action buttons right, truncating rather
+   than overflowing the toolbar on narrow screens. */
+.node-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* Tighten the terminal screen: no extra gap between the toolbar and the
    terminal (the generic toolbar margin would otherwise stack with the column
@@ -328,6 +367,61 @@ button.danger:hover { background: var(--danger-weak); }
   color: var(--accent-fg);
   border-color: var(--accent);
 }
+/* The last-used quick key and the `Ctrl ▾` trigger read as one segmented
+   control: joined edges, a single shared divider, only the outer corners
+   rounded. */
+.term-ctrl-group { display: inline-flex; flex: 0 0 auto; }
+.term-ctrl-group > button { border-radius: 0; position: relative; }
+.term-ctrl-group > button:first-child {
+  border-top-left-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
+}
+.term-ctrl-group > button:last-child {
+  border-top-right-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+  margin-left: -1px; /* collapse the shared border into one divider */
+}
+/* Raise the focused/hovered/armed edge so its border sits above the overlap. */
+.term-ctrl-group > button:hover,
+.term-ctrl-group > button:focus,
+.term-ctrl-group > button.active { z-index: 1; }
+
+/* The Ctrl button carries a caret to signal it opens a menu. */
+.term-accessory button.has-menu::after {
+  content: '▾';
+  margin-left: 4px;
+  font-size: 0.8em;
+  opacity: 0.7;
+}
+
+/* Ctrl combinations popup, anchored above the Ctrl button (positioned in JS). */
+.ctrl-menu {
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  max-width: calc(100vw - 16px);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.ctrl-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.ctrl-menu-item { min-width: 40px; min-height: 36px; padding: 6px 8px; }
+.ctrl-menu-custom { display: flex; align-items: center; gap: 6px; }
+.ctrl-menu-label { opacity: 0.8; }
+.ctrl-custom-input {
+  width: 44px;
+  text-align: center;
+  text-transform: uppercase;
+}
+.ctrl-menu-sep { height: 1px; background: var(--border); margin: 2px 0; }
+.ctrl-menu-arm { width: 100%; }
 
 /* Terminal screen: lock the page to the viewport so only the terminal's own
    content scrolls — no body/page scroll or mobile rubber-banding. The terminal
@@ -492,6 +586,11 @@ html.terminal-active .terminal-host { height: 100%; min-height: 0; max-height: n
   /* Buttons get comfortable touch targets on small screens. */
   button { padding: 11px 16px; }
   .list-item { padding: 16px; }
+  /* Sessions: stack the info over a full-width action row so the (smaller)
+     buttons fit on a single line on a phone / vertical screen. */
+  .session-item { flex-direction: column; align-items: stretch; gap: 10px; }
+  .session-actions { justify-content: flex-start; }
+  .session-actions button { flex: 1 1 auto; padding: 8px 6px; font-size: 0.82rem; }
   /* Terminal toolbar stays compact and wraps instead of overflowing; the
      spacer is dropped so the controls pack tightly across the row. */
   .terminal-screen .toolbar { flex-wrap: wrap; gap: 6px; }
