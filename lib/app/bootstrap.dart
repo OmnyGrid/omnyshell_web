@@ -2,6 +2,7 @@ import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
 
+import '../core/observable.dart';
 import '../core/omnyshell_service.dart';
 import '../router/router.dart';
 import '../state/ai_settings_controller.dart';
@@ -65,6 +66,7 @@ Future<App> bootstrap(web.HTMLElement root) async {
     settings: settings,
     kv: kv,
     toasts: toasts,
+    lastSession: Observable<String?>(null),
   );
 
   final app = App(ctx, root);

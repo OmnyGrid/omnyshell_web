@@ -1,6 +1,7 @@
 @TestOn('browser')
 library;
 
+import 'package:omnyshell/omnyshell_client_web.dart';
 import 'package:omnyshell_web/ui/dom.dart';
 import 'package:omnyshell_web/ui/screens/sessions_screen.dart';
 import 'package:test/test.dart';
@@ -61,6 +62,85 @@ void main() {
     h.dispose();
   });
 
+  test('shows the running program as a badge beside the state', () async {
+    final h = await connectedHarness(hubWithSessions());
+    final screen = SessionsScreen(h.ctx, 'web-01');
+    mount(h.container, screen.element);
+    await pump();
+
+    // aaaa1111 runs 'vim'; it renders as a command badge.
+    final cmd = h.container.querySelector('.badge.cmd');
+    expect(cmd, isNotNull);
+    expect(cmd!.textContent, 'vim');
+
+    screen.dispose();
+    h.dispose();
+  });
+
+  test('orders: highlighted, running, then detached and newer first', () async {
+    final hub = FakeHub(
+      validToken: 'good',
+      sessions: [
+        sampleSession(
+          'att',
+          state: SessionState.attached,
+          detached: false,
+          createdAt: DateTime.utc(2026, 4),
+        ),
+        sampleSession('oldp', createdAt: DateTime.utc(2026, 2)),
+        sampleSession('newp', createdAt: DateTime.utc(2026, 3)),
+        sampleSession('cmd', command: 'top'),
+        sampleSession('hi'),
+      ],
+    );
+    final h = await connectedHarness(hub);
+    h.ctx.lastSession.value = 'hi';
+    final screen = SessionsScreen(h.ctx, 'web-01');
+    mount(h.container, screen.element);
+    await pump();
+
+    final nodes = h.container.querySelectorAll('.list-item .title');
+    final titles = [
+      for (var i = 0; i < nodes.length; i++)
+        (nodes.item(i) as web.HTMLElement).textContent,
+    ];
+    expect(titles, ['hi', 'cmd', 'newp', 'oldp', 'att']);
+
+    screen.dispose();
+    h.dispose();
+  });
+
+  test('highlights the last-interacted session', () async {
+    final h = await connectedHarness(hubWithSessions());
+    h.ctx.lastSession.value = 'bbbb2222';
+    final screen = SessionsScreen(h.ctx, 'web-01');
+    mount(h.container, screen.element);
+    await pump();
+
+    final highlighted = h.container.querySelector('.list-item.highlight');
+    expect(highlighted, isNotNull);
+    expect(highlighted!.textContent, contains('bbbb2222'));
+
+    screen.dispose();
+    h.dispose();
+  });
+
+  test('highlights by full session id (freshly created session)', () async {
+    final h = await connectedHarness(hubWithSessions());
+    // The terminal view sets lastSession to the full session id on open.
+    h.ctx.lastSession.value = 'session-bbbb2222-full';
+    final screen = SessionsScreen(h.ctx, 'web-01');
+    mount(h.container, screen.element);
+    await pump();
+
+    final highlighted = h.container.querySelector('.list-item.highlight');
+    expect(highlighted, isNotNull);
+    expect(highlighted!.textContent, contains('bbbb2222'));
+
+    screen.dispose();
+    h.dispose();
+  });
+
   test('empty state when the node has no sessions', () async {
     final h = await connectedHarness(FakeHub(validToken: 'good'));
     final screen = SessionsScreen(h.ctx, 'web-01');
@@ -71,14 +151,14 @@ void main() {
     h.dispose();
   });
 
-  test('New Session opens a fresh shell without going back', () async {
+  test('New opens a fresh shell without going back', () async {
     final h = await connectedHarness(hubWithSessions());
     h.ctx.router.start();
     final screen = SessionsScreen(h.ctx, 'web-01');
     mount(h.container, screen.element);
     await pump();
 
-    final btn = buttonWithText(h.container, 'New Session');
+    final btn = buttonWithText(h.container, 'New');
     expect(btn, isNotNull);
     btn!.click();
     await pump();

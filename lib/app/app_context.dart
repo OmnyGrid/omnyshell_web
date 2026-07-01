@@ -1,5 +1,6 @@
 import 'package:web/web.dart' as web;
 
+import '../core/observable.dart';
 import '../core/omnyshell_service.dart';
 import '../router/router.dart';
 import '../state/ai_settings_controller.dart';
@@ -44,6 +45,11 @@ class AppContext {
   /// Transient notifications.
   final Toasts toasts;
 
+  /// Short id of the most recently interacted-with session (clicked from a
+  /// node's preview, resumed, peeked, or detached). The sessions list highlights
+  /// this row so the last-touched session is easy to find. `null` when none.
+  final Observable<String?> lastSession;
+
   /// Creates a context.
   const AppContext({
     required this.service,
@@ -56,6 +62,7 @@ class AppContext {
     required this.settings,
     required this.kv,
     required this.toasts,
+    required this.lastSession,
   });
 }
 

@@ -54,18 +54,25 @@ void main() {
     web.document.body!.appendChild(bar.element);
   });
 
-  tearDown(() => bar.element.remove());
+  tearDown(() {
+    web.document.querySelector('.ctrl-menu')?.remove();
+    bar.element.remove();
+  });
 
   Future<void> pump() => Future<void>.delayed(const Duration(milliseconds: 5));
 
+  // Searches the whole document so it finds both bar keys and popup menu items
+  // (the Ctrl popup is appended to document.body).
   web.HTMLElement key(String label) {
-    final list = bar.element.querySelectorAll('button');
+    final list = web.document.querySelectorAll('button');
     for (var i = 0; i < list.length; i++) {
       final b = list.item(i) as web.HTMLElement;
       if (b.textContent == label) return b;
     }
-    throw StateError('no accessory key "$label"');
+    throw StateError('no key "$label"');
   }
+
+  bool ctrlMenuOpen() => web.document.querySelector('.ctrl-menu') != null;
 
   test('Esc and Tab inject their control bytes', () {
     key('Esc').click();
@@ -81,18 +88,45 @@ void main() {
     expect(keys.sent.last, [0x1b, 0x5b, 0x43]);
   });
 
-  test('Ctrl arms the modifier and highlights', () {
+  test('Ctrl opens the combinations popup and toggles closed', () {
+    expect(ctrlMenuOpen(), isFalse);
     key('Ctrl').click();
-    expect(keys.ctrlArmed, isTrue);
-    expect(key('Ctrl').classList.contains('active'), isTrue);
+    expect(ctrlMenuOpen(), isTrue);
     key('Ctrl').click();
-    expect(keys.ctrlArmed, isFalse);
-    expect(key('Ctrl').classList.contains('active'), isFalse);
+    expect(ctrlMenuOpen(), isFalse);
   });
 
-  test('Ctrl-C key injects an interrupt byte', () {
+  test('the last-used quick key defaults to Ctrl-C and injects 0x03', () {
     key('Ctrl-C').click();
     expect(keys.sent.last, [0x03]);
+  });
+
+  test('picking a combo sends it and becomes the quick key', () {
+    key('Ctrl').click(); // open popup
+    key('^F').click(); // Ctrl-F
+    expect(keys.sent.last, [0x06]);
+    expect(ctrlMenuOpen(), isFalse); // closes after picking
+    // The quick key now repeats Ctrl-F.
+    key('Ctrl-F').click();
+    expect(keys.sent.last, [0x06]);
+  });
+
+  test('custom entry sends Ctrl-<char> and updates the quick key', () {
+    key('Ctrl').click();
+    final field =
+        web.document.querySelector('.ctrl-custom-input')
+            as web.HTMLInputElement;
+    field.value = 'r';
+    key('Send').click();
+    expect(keys.sent.last, [0x12]); // Ctrl-R
+    expect(key('Ctrl-R'), isNotNull); // quick key relabeled
+  });
+
+  test('Ctrl + next key arms the sticky modifier', () {
+    key('Ctrl').click();
+    key('Ctrl + next key').click();
+    expect(keys.ctrlArmed, isTrue);
+    expect(key('Ctrl').classList.contains('active'), isTrue);
   });
 
   test('a symbol key injects its literal character', () {

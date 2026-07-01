@@ -1,6 +1,33 @@
+## 1.14.2
+
+### Added
+
+- **Ctrl combinations popup on the terminal key bar.** The `Ctrl` button now opens a menu of
+  common combos (^A ^B ^C ^D ^F ^L ^Q ^S ^N ^P ^W ^Z), a custom single-character entry, and a
+  sticky "Ctrl + next key" modifier. A one-tap quick key repeats the last-used combo (defaults
+  to Ctrl-C); the two read as one segmented control.
+- **Sessions preview on the node info screen.** Opening a node shows a card summarizing its
+  current sessions (count + a compact list) with a `View all` button, before visiting the list.
+
+### Changed
+
+- **Sessions list ordering and highlight.** The last-interacted session (clicked from a node's
+  preview, resumed, or freshly created/opened) is highlighted with an accent ring and sorted to
+  the top, followed by sessions running a program, then detached before attached, then newer
+  first. A running program is shown as a green badge beside the attached/detached badge.
+- **Sessions list layout.** The node id is shown big and white (like the node-info title); the
+  `Sessions` heading is slightly smaller; the `New` and `Refresh` buttons are compact; and the
+  per-session action buttons are smaller and fit on a single line on phones.
+- **Top menu polish.** The theme (`System`/`Light`/`Dark`) and `Sign out` buttons use smaller
+  text; the settings gear is slightly larger. On the node screen the `Sessions` button was
+  removed and `New shell` moved to the top-right.
+
 ## 1.14.1
 
 ### Fixed
+
+- **Typing after TAB/Arrow-Up no longer staircases a new prompt line per keystroke on a narrow
+  terminal (iOS Safari).** The shared `LineEditor` repainted the input line assuming it fits one
 
 - **Typing after TAB/Arrow-Up no longer staircases a new prompt line per keystroke on a narrow
   terminal (iOS Safari).** The shared `LineEditor` repainted the input line assuming it fits one

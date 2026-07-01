@@ -27,12 +27,17 @@ class SessionsScreen implements Screen {
   late final web.HTMLElement _body;
   late final web.HTMLButtonElement _refresh;
   StreamSubscription<AsyncState<List<DetachedSessionInfo>>>? _sub;
+  StreamSubscription<String?>? _lastSub;
 
   /// Builds the sessions screen for [nodeId].
   SessionsScreen(this.ctx, this.nodeId) {
     _controller = SessionsController(ctx.service, nodeId);
     _body = div(classes: 'list');
-    _refresh = button('Refresh', onClick: _controller.refresh);
+    _refresh = button(
+      'Refresh',
+      className: 'btn-sm',
+      onClick: _controller.refresh,
+    );
 
     element = el(
       'div',
@@ -48,11 +53,12 @@ class SessionsScreen implements Screen {
               onClick: () =>
                   ctx.router.go('/nodes/${Uri.encodeComponent(nodeId)}'),
             ),
-            el('h1', text: 'Sessions'),
+            el('h1', text: 'Sessions', classes: 'sessions-title'),
             el('div', classes: 'grow'),
             button(
-              'New Session',
+              'New',
               primary: true,
+              className: 'btn-sm',
               onClick: () => ctx.router.go(
                 '/nodes/${Uri.encodeComponent(nodeId)}/sessions/new',
               ),
@@ -60,12 +66,17 @@ class SessionsScreen implements Screen {
             _refresh,
           ],
         ),
-        el('p', classes: 'muted mono', text: nodeId),
+        // The node id, shown big and white like the node-info title.
+        el('h1', classes: 'mono node-title', text: nodeId),
         _body,
       ],
     );
 
     _sub = _controller.state.stream.listen(_render);
+    // Re-render when the highlighted (last-interacted) session changes.
+    _lastSub = ctx.lastSession.stream.listen(
+      (_) => _render(_controller.state.value),
+    );
     _render(_controller.state.value);
     unawaited(_controller.refresh());
   }
@@ -89,19 +100,47 @@ class SessionsScreen implements Screen {
       _body.appendChild(emptyState('No sessions on this node.'));
       return;
     }
-    for (final s in sessions) {
+    for (final s in _ordered(sessions)) {
       _body.appendChild(_sessionRow(s));
     }
   }
 
+  /// Whether [s] is the last-interacted session. Matches on either the short id
+  /// (set from the list/preview) or the full session id (set when a session is
+  /// opened in the terminal view, before the list knows its short id).
+  bool _isLast(DetachedSessionInfo s) {
+    final last = ctx.lastSession.value;
+    return last != null && (s.shortId == last || s.sessionId == last);
+  }
+
+  /// Orders sessions for display: the highlighted (last-interacted) session
+  /// first, then those running a program, then detached before attached, and
+  /// newer before older.
+  List<DetachedSessionInfo> _ordered(List<DetachedSessionInfo> sessions) {
+    bool running(DetachedSessionInfo s) =>
+        s.currentCommand != null && s.currentCommand!.isNotEmpty;
+    return [...sessions]..sort((a, b) {
+      final ah = _isLast(a), bh = _isLast(b);
+      if (ah != bh) return ah ? -1 : 1;
+      final ar = running(a), br = running(b);
+      if (ar != br) return ar ? -1 : 1;
+      final ad = a.state == SessionState.detached;
+      final bd = b.state == SessionState.detached;
+      if (ad != bd) return ad ? -1 : 1;
+      return b.createdAt.compareTo(a.createdAt); // newer first
+    });
+  }
+
   web.HTMLElement _sessionRow(DetachedSessionInfo s) {
     final now = DateTime.now();
+    final command = s.currentCommand;
+    final hasCommand = command != null && command.isNotEmpty;
+
+    // The running program is shown as a badge (below); the detail line carries
+    // the remaining context.
     final detail = StringBuffer(
       '${s.mode.name} · created ${relativeTime(s.createdAt, now)}',
     );
-    if (s.currentCommand != null && s.currentCommand!.isNotEmpty) {
-      detail.write(' · ${s.currentCommand}');
-    }
     if (s.currentCwd != null && s.currentCwd!.isNotEmpty) {
       detail.write(' · ${s.currentCwd}');
     }
@@ -110,9 +149,12 @@ class SessionsScreen implements Screen {
     }
 
     final isDetached = s.state == SessionState.detached;
+    final highlighted = _isLast(s);
     return el(
       'div',
-      classes: 'list-item',
+      classes: highlighted
+          ? 'list-item session-item highlight'
+          : 'list-item session-item',
       attrs: {'style': 'cursor:default'},
       children: [
         el(
@@ -121,10 +163,13 @@ class SessionsScreen implements Screen {
           children: [
             el(
               'div',
-              classes: 'row',
+              classes: 'row wrap',
               children: [
                 el('span', classes: 'title mono', text: s.shortId),
                 el('span', classes: 'badge', text: s.state.name),
+                // The running program, beside the attached/detached badge.
+                if (hasCommand)
+                  el('span', classes: 'badge cmd mono', text: command),
               ],
             ),
             el('div', classes: 'sub', text: detail.toString()),
@@ -132,9 +177,11 @@ class SessionsScreen implements Screen {
         ),
         el(
           'div',
-          classes: 'row wrap',
+          classes: 'row session-actions',
           children: [
-            button('Resume', primary: true, onClick: () => _resume(s)),
+            // Resume attaches to a parked session; only meaningful when detached.
+            if (isDetached)
+              button('Resume', primary: true, onClick: () => _resume(s)),
             button('Peek', onClick: () => _peek(s)),
             if (!isDetached) button('Detach', onClick: () => _detach(s)),
             button('Kill', className: 'danger', onClick: () => _confirmKill(s)),
@@ -144,11 +191,15 @@ class SessionsScreen implements Screen {
     );
   }
 
-  void _resume(DetachedSessionInfo s) => ctx.router.go(
-    '/nodes/${Uri.encodeComponent(nodeId)}/sessions/${Uri.encodeComponent(s.shortId)}',
-  );
+  void _resume(DetachedSessionInfo s) {
+    ctx.lastSession.value = s.shortId;
+    ctx.router.go(
+      '/nodes/${Uri.encodeComponent(nodeId)}/sessions/${Uri.encodeComponent(s.shortId)}',
+    );
+  }
 
   Future<void> _peek(DetachedSessionInfo s) async {
+    ctx.lastSession.value = s.shortId;
     final result = await _controller.peek(s.shortId);
     if (!result.ok) {
       ctx.toasts.error('Peek failed: ${result.message}');
@@ -163,6 +214,7 @@ class SessionsScreen implements Screen {
   }
 
   Future<void> _detach(DetachedSessionInfo s) async {
+    ctx.lastSession.value = s.shortId;
     final r = await _controller.detach(s.shortId);
     r.ok ? ctx.toasts.success(r.message) : ctx.toasts.error(r.message);
   }
@@ -194,5 +246,8 @@ class SessionsScreen implements Screen {
   }
 
   @override
-  void dispose() => _sub?.cancel();
+  void dispose() {
+    _sub?.cancel();
+    _lastSub?.cancel();
+  }
 }

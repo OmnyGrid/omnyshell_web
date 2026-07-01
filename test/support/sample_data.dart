@@ -8,8 +8,9 @@ DetachedSessionInfo sampleSession(
   String? command,
   String? cwd = '/home/alice',
   bool detached = true,
+  DateTime? createdAt,
 }) {
-  final created = DateTime.utc(2026, 1, 1, 12);
+  final created = createdAt ?? DateTime.utc(2026, 1, 1, 12);
   return DetachedSessionInfo(
     sessionId: 'session-$shortId-full',
     shortId: shortId,
