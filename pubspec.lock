@@ -357,18 +357,18 @@ packages:
     dependency: transitive
     description:
       name: omnydrive
-      sha256: fd6ceead415ce00a4fcf19b27ab312fbbb1245251f73152055dc1021e9e44843
+      sha256: "51264c34253e13763fdfbe97fad9a6b03f4c98ace2426931e4034eb2af832913"
       url: "https://pub.dev"
     source: hosted
-    version: "1.8.0"
+    version: "1.10.0"
   omnyshell:
     dependency: "direct main"
     description:
       name: omnyshell
-      sha256: e4815b1c5c102dfb00c921f3a9db10f55e3904fb2cd20a477252e87fc9850da2
+      sha256: f7305711924b45bb416312da9ce71f0cf3c9aa0eb03e28e2c59e0035fab4e683
       url: "https://pub.dev"
     source: hosted
-    version: "1.49.0"
+    version: "1.51.0"
   package_config:
     dependency: transitive
     description:
