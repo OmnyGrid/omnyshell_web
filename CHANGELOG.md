@@ -1,3 +1,14 @@
+## 1.14.11
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.55.0. In that release OmnyShell's transport moves
+  onto the shared [omnyhub](https://pub.dev/packages/omnyhub) stack (`FrameConnection` over an
+  omnyhub `TypedConnection<OmnyShellFrame>`). The change is native/`dart:io`-side; the browser
+  barrel (`WsChannelConnection`, the web transport factory) is unchanged, so the PWA is
+  unaffected. Verified: the dart2js release bundle builds and the VM + Chrome test suites pass
+  against 1.55.0.
+
 ## 1.14.6
 
 ### Changed
