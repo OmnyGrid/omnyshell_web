@@ -1,3 +1,15 @@
+## 1.14.12
+
+### Changed
+
+- Bumped the `omnyshell` dependency to ^1.56.1. 1.56.0 lets the Hub broker be hosted on a
+  listener OmnyShell does not own (`OmnyShellHubService`, an omnyhub `Service`), rebuilds
+  `OmnyShellHub` on omnyhub's `OmnyHub` — TLS via `StaticTls`/`ReloadableFileTls`, `shelf`
+  dropped — and adds `NodeConfig.home`; 1.56.1 is a dependency-constraint refresh (omnyhub
+  ^1.5.1, omnydrive ^1.12.3). All of it is node/hub-side; the browser barrel is unchanged, so
+  the PWA is unaffected. Also bumped `build_runner` to ^2.15.1. Verified: the dart2js release
+  bundle builds and the VM + Chrome test suites pass against 1.56.1.
+
 ## 1.14.11
 
 ### Changed
