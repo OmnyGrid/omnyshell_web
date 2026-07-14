@@ -3,10 +3,16 @@ import 'dart:async';
 import 'package:web/web.dart' as web;
 
 import '../app/app_context.dart';
+import '../terminal/device_metrics.dart';
 import '../terminal/terminal_dimensions.dart';
 import 'dom.dart';
 import 'modal.dart';
 import 'widgets.dart';
+
+// `deviceMetrics` moved to `terminal/device_metrics.dart` so the terminal stack
+// can be embedded without dragging this AppContext-coupled panel along. Kept
+// exported here so existing importers are unaffected.
+export '../terminal/device_metrics.dart' show deviceMetrics;
 
 /// Opens the global settings panel — a modal where the user picks the terminal
 /// dimensions for new sessions and the terminal text size. Both choices persist
@@ -227,19 +233,4 @@ void showSettingsPanel(AppContext ctx) {
     actions: [button('Close', primary: true, onClick: () => modal.close())],
   );
   modal.show();
-}
-
-/// Reads this device's screen boxes in both orientations from the browser.
-/// `screen.width/height` are orientation-stable enough to derive both boxes, so
-/// the presets stay correct regardless of how the device is currently held.
-DeviceMetrics deviceMetrics() {
-  final s = web.window.screen;
-  final w = s.width.toDouble();
-  final h = s.height.toDouble();
-  final short = w < h ? w : h;
-  final long = w < h ? h : w;
-  return DeviceMetrics(
-    portrait: OrientationBox(short, long),
-    landscape: OrientationBox(long, short),
-  );
 }

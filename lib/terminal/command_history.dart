@@ -15,6 +15,10 @@ import '../storage/key_value_store.dart';
 /// persisted as newline-joined lines.
 class CommandHistory implements CommandHistoryStore {
   /// Namespace for stored histories, kept distinct from settings/cache keys.
+  ///
+  /// An app embedding this package passes its own `prefix` to
+  /// [CommandHistory.load] so its histories do not collide with another app's
+  /// on the same origin.
   static const String storagePrefix = 'omnyshell.history.';
 
   /// The shared, storage-agnostic entry buffer (add rules + cap + navigation).
@@ -35,8 +39,9 @@ class CommandHistory implements CommandHistoryStore {
     required KeyValueStore kv,
     required String key,
     int maxEntries = 1000,
+    String prefix = storagePrefix,
   }) {
-    final storageKey = '$storagePrefix${CommandHistoryBuffer.sanitizeKey(key)}';
+    final storageKey = '$prefix${CommandHistoryBuffer.sanitizeKey(key)}';
     final buffer = CommandHistoryBuffer(maxEntries: maxEntries);
     try {
       final raw = kv.read(storageKey);

@@ -27,20 +27,48 @@ transport seam:
 
 A `dart compile js` gate proves the `ClientRuntime` graph carries no `dart:io`.
 
+## Public surface
+
+This package is consumed by other web apps (OmnyServer Web is the first), so the
+`lib/` tree is split into a shared tier that is exported and an app tier that is
+not. Three barrels:
+
+| Barrel | Exports | Guarantees |
+|---|---|---|
+| `terminal.dart` | `TerminalView`/`TerminalKeys`, `WebShellHost`, `XtermTerminalView` (+`XtermTheme`), `TerminalAccessoryBar`, `TerminalFitter`, `CommandHistory`, `terminal_dimensions`, `deviceMetrics` | No `AppContext`, no screens. `WebShellHost` imports only `dart:async`, `dart:convert`, `omnyshell` and two leaf files. AI/IDE are opt-in and never imported by the host. |
+| `ui_kit.dart` | `dom`, `widgets`, `toasts`, `modal` | DOM-only. **Styled by class names**, so a consumer must ship `kit.css`. |
+| `client.dart` | `OmnyShellService`, `AppError`, `Observable`, `AsyncState`, the controllers, storage, router, `ThemeController` | No DOM framework. Storage prefixes and theme application are injected, never hardcoded. |
+
+Not exported, and deliberately so: `app/` (App, AppContext, bootstrap, Routes),
+`ui/screens/`, `ui/settings_panel.dart`. Those carry this app's identity — its
+brand, its routes, its service locator — and exporting them is what would let the
+shared tier quietly re-acquire `AppContext` coupling. **The rule: nothing under a
+barrel may import `app/` or `ui/screens/`.**
+
+The session seam itself — `ShellSessionPort`, which `RemoteSession` implements —
+lives *upstream* in `package:omnyshell`, not here, so a consumer gets it for free.
+
+Browser assets (the xterm bundle, `kit.css`, `terminal.css`, `boot.js`) ship
+inside the pub archive but are never *served* to a consuming app by pub, so
+`bin/copy_assets.dart` installs them into the consumer's own `web/`.
+
 ## Layers (`lib/`)
 
 ```
 app/         App (root: header, route guard, screen mounting), AppContext,
-             bootstrap (production wiring), Routes
+             bootstrap (production wiring), Routes          [app-private]
 core/        OmnyShellService (facade over ClientRuntime), AppError mapping,
-             Observable, time formatting
+             Observable, time formatting                    [client.dart]
 state/       Auth / Nodes / Sessions / Theme controllers, AsyncState
+                                                            [client.dart]
 storage/     KeyValueStore (+ localStorage & in-memory impls), SettingsStore,
-             NodeCache
-router/      Router (hash-based) + pure route matcher
-terminal/    TerminalView/SessionIo interfaces, SessionBridge (pure wiring),
-             xterm.js interop + RemoteSession adapter
-ui/          dom helpers, widgets, toasts, modal, screens/
+             NodeCache — all prefix-parameterized           [client.dart]
+router/      Router (hash-based) + pure route matcher       [client.dart]
+terminal/    TerminalView/TerminalKeys interfaces, WebShellHost (the shell
+             driver), xterm.js interop, accessory key bar, TerminalFitter
+             (sizing engine), command history               [terminal.dart]
+ui/          dom helpers, widgets, toasts, modal            [ui_kit.dart]
+             screens/, settings_panel.dart                  [app-private]
 ```
 
 ### State management
