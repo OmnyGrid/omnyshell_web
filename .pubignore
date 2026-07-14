@@ -1,0 +1,17 @@
+# What ships to pub.dev.
+#
+# `web/` MUST stay in the archive: `bin/copy_assets.dart` installs the xterm
+# bundle and the stylesheets into a consuming app out of the published package,
+# and pub never serves a dependency's web/ directory on its own. So only the dead
+# weight is excluded here — never `web/vendor/`, `kit.css`, `terminal.css` or
+# `boot.js`.
+
+# Unreferenced brand art: not used by index.html, the manifest or the service
+# worker, and half a megabyte of it.
+web/icons/icon-omnygrid.png
+web/icons/icon-omnygrid-bg.png
+web/icons/logo-omnygrid.png
+
+.DS_Store
+**/.DS_Store
+build/

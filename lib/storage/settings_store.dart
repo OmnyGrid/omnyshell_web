@@ -8,27 +8,38 @@ import 'key_value_store.dart';
 /// page — see the README security note; [rememberToken] lets the user keep the
 /// token in memory only.
 class SettingsStore {
-  static const String _prefix = 'omnyshell.';
-  static const String _themeKey = '${_prefix}theme';
-  static const String _hubKey = '${_prefix}hub';
-  static const String _principalKey = '${_prefix}principal';
-  static const String _rememberKey = '${_prefix}rememberToken';
-  static const String _tokenPrefix = '${_prefix}token.';
-  static const String _termDimKey = '${_prefix}terminal.dimPreset';
-  static const String _termColsKey = '${_prefix}terminal.customCols';
-  static const String _termRowsKey = '${_prefix}terminal.customRows';
-  static const String _termTextKey = '${_prefix}terminal.textSize';
-  static const String _aiUseHubKey = '${_prefix}ai.useHubDefault';
-  static const String _aiProviderKey = '${_prefix}ai.provider';
-  static const String _aiModelKey = '${_prefix}ai.model';
-  static const String _aiApiKeyKey = '${_prefix}ai.apiKey';
-  static const String _aiModeKey = '${_prefix}ai.mode';
-  static const String _aiLanguageKey = '${_prefix}ai.language';
+  /// The default key namespace.
+  static const String defaultPrefix = 'omnyshell.';
+
+  /// The namespace every key of this store is written under.
+  ///
+  /// Another app embedding this package — the OmnyServer dashboard, say — is
+  /// very likely served from the *same origin* as this one (one Hub can host
+  /// both), and `localStorage` is per-origin. Sharing the namespace would mean
+  /// sharing, and clobbering, each other's theme, Hub, token and terminal
+  /// preferences. Give each app its own prefix.
+  final String prefix;
 
   final KeyValueStore _kv;
 
-  /// Creates a settings store over [kv].
-  SettingsStore(this._kv);
+  /// Creates a settings store over [kv], namespacing keys under [prefix].
+  SettingsStore(this._kv, {this.prefix = defaultPrefix});
+
+  String get _themeKey => '${prefix}theme';
+  String get _hubKey => '${prefix}hub';
+  String get _principalKey => '${prefix}principal';
+  String get _rememberKey => '${prefix}rememberToken';
+  String get _tokenPrefix => '${prefix}token.';
+  String get _termDimKey => '${prefix}terminal.dimPreset';
+  String get _termColsKey => '${prefix}terminal.customCols';
+  String get _termRowsKey => '${prefix}terminal.customRows';
+  String get _termTextKey => '${prefix}terminal.textSize';
+  String get _aiUseHubKey => '${prefix}ai.useHubDefault';
+  String get _aiProviderKey => '${prefix}ai.provider';
+  String get _aiModelKey => '${prefix}ai.model';
+  String get _aiApiKeyKey => '${prefix}ai.apiKey';
+  String get _aiModeKey => '${prefix}ai.mode';
+  String get _aiLanguageKey => '${prefix}ai.language';
 
   /// The persisted theme preference (`light`, `dark`, or `system`), or `null`.
   String? get theme => _kv.read(_themeKey);

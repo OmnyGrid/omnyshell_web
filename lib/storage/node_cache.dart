@@ -8,11 +8,16 @@ import 'key_value_store.dart';
 /// reload while a fresh fetch runs. Backed by [KeyValueStore]; the cache is
 /// best-effort — any decode error yields `null` (treated as a cold cache).
 class NodeCache {
-  static const String _key = 'omnyshell.cache.nodes';
+  /// The default key namespace, matching [SettingsStore.defaultPrefix].
+  static const String defaultPrefix = 'omnyshell.';
+
+  final String _key;
   final KeyValueStore _kv;
 
-  /// Creates a cache over [kv].
-  NodeCache(this._kv);
+  /// Creates a cache over [kv], namespaced under [prefix] so two apps on one
+  /// origin do not share a node list.
+  NodeCache(this._kv, {String prefix = defaultPrefix})
+    : _key = '${prefix}cache.nodes';
 
   /// Returns the cached nodes, or `null` if absent/unreadable.
   List<NodeDescriptor>? read() {
