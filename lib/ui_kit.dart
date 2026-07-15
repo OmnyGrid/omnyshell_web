@@ -17,6 +17,7 @@
 /// your `web/`. Without them the widgets render unstyled.
 library;
 
+export 'ui/ai_settings_section.dart';
 export 'ui/dom.dart';
 export 'ui/modal.dart';
 export 'ui/toasts.dart';

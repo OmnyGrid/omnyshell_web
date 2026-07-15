@@ -1,10 +1,7 @@
-import 'dart:async';
-
-import 'package:web/web.dart' as web;
-
 import '../app/app_context.dart';
 import '../terminal/device_metrics.dart';
 import '../terminal/terminal_dimensions.dart';
+import 'ai_settings_section.dart';
 import 'dom.dart';
 import 'modal.dart';
 import 'widgets.dart';
@@ -100,99 +97,7 @@ void showSettingsPanel(AppContext ctx) {
     onChange: (value) => display.setTextSize(TerminalTextSize.parse(value)),
   );
 
-  // --- AI agent -------------------------------------------------------------
-  final ai = ctx.ai;
-
-  final providerSelect =
-      el('select', id: 'ai-provider') as web.HTMLSelectElement;
-  for (final p in const ['anthropic', 'openai', 'gemini']) {
-    final opt = el('option', text: p) as web.HTMLOptionElement;
-    opt.value = p;
-    opt.selected = p == ai.provider;
-    providerSelect.appendChild(opt);
-  }
-  on(providerSelect, 'change', (_) => ai.provider = providerSelect.value);
-
-  final aiModel = input(
-    id: 'ai-model',
-    value: ai.model,
-    placeholder: 'provider default',
-  );
-  on(aiModel, 'change', (_) => ai.model = aiModel.value);
-
-  final aiKey = input(
-    id: 'ai-key',
-    type: 'password',
-    value: ai.apiKey,
-    placeholder: 'sk-…',
-    autocomplete: 'off',
-  );
-  on(aiKey, 'change', (_) => ai.apiKey = aiKey.value);
-
-  final aiCustom = el(
-    'div',
-    classes: 'stack ai-custom',
-    children: [
-      field('Provider', providerSelect),
-      field('Model', aiModel, hint: 'Leave blank for the provider default.'),
-      field(
-        'Your API key',
-        aiKey,
-        hint: 'Stored in this browser only; sent via the Hub to the provider.',
-      ),
-    ],
-  );
-
-  void syncAiEnabled() {
-    final custom = !ai.useHubDefault;
-    aiCustom.classList.toggle('disabled', !custom);
-    providerSelect.disabled = !custom;
-    aiModel.disabled = !custom;
-    aiKey.disabled = !custom;
-  }
-
-  final hubHint = el('div', classes: 'hint', text: 'Checking the Hub default…');
-  unawaited(
-    ai.hubDefault().then((cfg) {
-      hubHint.textContent = (cfg == null || !cfg.available)
-          ? 'The Hub has no default AI provider — add your own key below.'
-          : 'Hub default: ${cfg.provider} / ${cfg.model ?? 'model default'} '
-                '(the key stays on the Hub).';
-    }),
-  );
-
-  final useHub = checkbox(
-    "Use the Hub's default AI provider",
-    id: 'ai-use-hub',
-    checked: ai.useHubDefault,
-  );
-  on(useHub.box, 'change', (_) {
-    ai.useHubDefault = useHub.box.checked;
-    syncAiEnabled();
-  });
-
-  final aiMode = radioGroup(
-    name: 'ai-mode',
-    ariaLabel: 'Agent mode',
-    inline: true,
-    selected: ai.mode,
-    options: const [
-      (value: 'standard', label: 'Standard'),
-      (value: 'plan', label: 'Plan'),
-      (value: 'auto', label: 'Auto'),
-    ],
-    onChange: (value) => ai.mode = value,
-  );
-
-  final aiLang = input(
-    id: 'ai-lang',
-    value: ai.language,
-    placeholder: 'model default',
-  );
-  on(aiLang, 'change', (_) => ai.language = aiLang.value);
-
-  syncAiEnabled();
-
+  // The AI-agent controls are the portable half — see [aiSettingsSection].
   late final Modal modal;
   final body = el(
     'div',
@@ -212,18 +117,7 @@ void showSettingsPanel(AppContext ctx) {
       textSize,
       el('div', classes: 'hint', text: 'Applies immediately.'),
       el('hr'),
-      el('h3', text: 'AI agent'),
-      useHub.root,
-      hubHint,
-      aiCustom,
-      el('div', classes: 'hint', text: 'Default mode'),
-      aiMode,
-      field(
-        'Reply language',
-        aiLang,
-        hint: 'e.g. english, portuguese — blank for the model default.',
-      ),
-      el('div', classes: 'hint', text: 'Applies to the next session you open.'),
+      ...aiSettingsSection(ctx.ai),
     ],
   );
 

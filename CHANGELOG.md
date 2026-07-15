@@ -1,3 +1,31 @@
+## 1.16.0
+
+The `:ai` and `:ide` shell commands, and the AI settings that back them, are now
+public API — a sibling dashboard can offer the same terminal commands without
+copying code.
+
+Additive and backward-compatible.
+
+### Added
+
+- **Barrel exports for the browser shell commands.** `terminal.dart` now exports
+  `registerAiCommand` / `resolveAiWiring` (`:ai`) and `registerIdeCommand`
+  (`:ide`); `client.dart` exports `AiSettingsController`. These already shipped in
+  the package — they just were not reachable without importing an internal path.
+
+- **`aiSettingsSection(AiSettingsController)`** (exported from `ui_kit.dart`) — the
+  portable half of the settings dialog: the AI provider/model/key, Hub-default
+  toggle, agent mode and reply-language controls, bound only to a controller and
+  free of any `AppContext`. Drop it into any settings modal.
+
+### Changed
+
+- The built-in settings panel now composes `aiSettingsSection` for its AI block
+  rather than building those controls inline, so the shell app and an embedding
+  app render the same UI from one source.
+
+---
+
 ## 1.15.0
 
 **OmnyShell Web is now a package, not only an app.** Any Dart web app can embed a

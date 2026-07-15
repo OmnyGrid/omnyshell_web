@@ -3,7 +3,7 @@ description: >-
   A browser client for OmnyShell — connect to a Hub, discover nodes, run
   interactive sessions — and the reusable library behind it: embed a real remote
   shell terminal, or its UI kit, in any Dart web app.
-version: 1.15.0
+version: 1.16.0
 repository: https://github.com/OmnyGrid/omnyshell_web
 topics:
   - terminal

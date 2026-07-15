@@ -52,3 +52,9 @@ export 'terminal/terminal_fitter.dart';
 export 'terminal/terminal_view.dart';
 export 'terminal/web_shell_host.dart';
 export 'terminal/xterm_terminal_view.dart';
+// Local shell commands a browser adds on top of the omnyshell built-ins:
+// `:ai` (the in-terminal agent, proxied through the Hub) and `:ide` (the
+// terminal IDE on the node). A dashboard that embeds this terminal registers
+// them the same way the shell app does.
+export 'terminal/ai_command_factory.dart';
+export 'terminal/ide_command_factory.dart';
