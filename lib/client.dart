@@ -37,5 +37,6 @@ export 'state/auth_controller.dart';
 export 'state/nodes_controller.dart';
 export 'state/sessions_controller.dart';
 export 'state/terminal_display_controller.dart';
+export 'state/ai_settings_controller.dart';
 export 'state/theme_controller.dart';
 export 'storage/local_storage_store.dart';
