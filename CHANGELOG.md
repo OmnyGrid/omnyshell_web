@@ -1,3 +1,30 @@
+## 1.17.0
+
+Moves to OmnyShell 1.61.1 (from 1.56.1). Browser sessions pick up the shared
+client changes from those releases.
+
+### Added
+
+- **The `l` shortcut** (OmnyShell 1.60.0). Typing `l` in a session lists the
+  directory with hidden entries and human-readable sizes, translated for the
+  session's shell: `ls -alh` on POSIX shells, `Get-ChildItem -Force` on
+  PowerShell, and `dir /a` on `cmd.exe`. Anything typed after `l` is passed
+  through.
+
+### Fixed
+
+- **Windows sessions no longer show `\r` as the prompt's directory**
+  (OmnyShell 1.61.0). winpty sometimes ends the marker a node sends after each
+  command with an extra carriage return, and the client took that as the
+  working directory. The prompt was corrupted and TAB completion failed.
+  Carriage returns are now stripped from every marker field.
+
+### Changed
+
+- Requires `omnyshell` ^1.61.1. The locked `omnyhub` moves to 1.7.0 with it,
+  and the dev tooling (`build_runner`, `build_web_compilers`, `test`) is
+  refreshed within its constraints.
+
 ## 1.16.0
 
 The `:ai` and `:ide` shell commands, and the AI settings that back them, are now
