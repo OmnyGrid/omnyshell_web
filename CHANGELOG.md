@@ -1,3 +1,41 @@
+## 1.18.0
+
+Moves to OmnyShell 1.63.3 (from 1.61.1). Browser sessions pick up the shared
+`:tunnel` and `:ide` changes from those releases.
+
+### Added
+
+- **HTTP tunnels from `:tunnel`** (OmnyShell 1.62.0). `:tunnel <port>
+  --protocol http` opens a tunnel whose Hub adds forwarding headers
+  (`X-Forwarded-For`, `Forwarded`, `X-Request-Id`, …) to every request it
+  relays. `:tunnel ls` shows such tunnels as `http://`.
+- **Response caching for HTTP tunnels** (OmnyShell 1.63.0). `:tunnel …
+  --cache` keeps a `Cache-Control`-aware response cache on the Hub, with
+  `--cache-size`, `--cache-max-entry`, `--cache-private` and
+  `--cache-default-ttl`. `:tunnel ls` shows cache usage and hit counts.
+- **HTTP timeouts for HTTP tunnels** (OmnyShell 1.63.0):
+  `--http-response-header-timeout`, `--http-idle-timeout`,
+  `--http-client-timeout` and `--http-max-duration`.
+- **Deep git scan in the `:ide` file tree** (OmnyShell 1.61.2). Pressing `g`
+  marks every folder above a change with its git status.
+
+### Changed
+
+- **The `:ide` file tree shows dot-files by default** (OmnyShell 1.61.2); `.`
+  hides them.
+- **HTTP tunnels apply default timeouts** (OmnyShell 1.63.0). A silent target
+  now gets the consumer a `504` after 60s, and a target the node can't reach a
+  `502`.
+- Requires `omnyshell` ^1.63.3. The locked `omnyhub` moves to 1.9.2 with it,
+  and `build_web_compilers` is refreshed within its constraint.
+
+### Fixed
+
+- **Answering `q` at the `:ide` agent's "Abort the AI agent?" prompt now
+  aborts** (OmnyShell 1.61.2).
+- **The `:ide` terminal no longer garbles non-ASCII output** split across
+  chunks (OmnyShell 1.61.2).
+
 ## 1.17.0
 
 Moves to OmnyShell 1.61.1 (from 1.56.1). Browser sessions pick up the shared
