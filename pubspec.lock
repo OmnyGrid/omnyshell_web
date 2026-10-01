@@ -117,18 +117,18 @@ packages:
     dependency: "direct dev"
     description:
       name: build_web_compilers
-      sha256: f8e2a2b3c45b0754fccb284e6f5d890b9d7ff3bed758293e55d29bcdc2821b78
+      sha256: f8136b4d19e55917711f134a5f4cf2fded7dfe97e4accf0c9a47b5d0fea4e296
       url: "https://pub.dev"
     source: hosted
-    version: "4.8.10"
+    version: "4.8.11"
   built_collection:
     dependency: transitive
     description:
       name: built_collection
-      sha256: "376e3dd27b51ea877c28d525560790aee2e6fbb5f20e2f85d5081027d94e2100"
+      sha256: "44922ecebd8e3d0cef743dadd3b54df4e87e2a4c52a29465a1872aa9e192caa8"
       url: "https://pub.dev"
     source: hosted
-    version: "5.1.1"
+    version: "5.1.2"
   built_value:
     dependency: transitive
     description:
@@ -413,18 +413,18 @@ packages:
     dependency: transitive
     description:
       name: omnyhub
-      sha256: "065677b261a3a9628b81962bc02a340ae2891bc7930336690ead7d9b186621d0"
+      sha256: "584f9a4f71fa83253935b84de4f90f06dab5f067e295abd54bcbeeba4dd00765"
       url: "https://pub.dev"
     source: hosted
-    version: "1.7.0"
+    version: "1.9.2"
   omnyshell:
     dependency: "direct main"
     description:
       name: omnyshell
-      sha256: a68f1957e0e96e7cf3ba2ab75bf1b74ef3f6e7eb3790dfef34a5014e119e49d6
+      sha256: "26948271539acf0f34f6d4851d18c1a6a095cacfb0336461277671252a9d8743"
       url: "https://pub.dev"
     source: hosted
-    version: "1.61.1"
+    version: "1.63.3"
   package_config:
     dependency: transitive
     description:
@@ -730,4 +730,4 @@ packages:
     source: hosted
     version: "2.2.4"
 sdks:
-  dart: ">=3.13.0 <3.14.0-z"
+  dart: ">=3.13.0 <3.15.0-z"
